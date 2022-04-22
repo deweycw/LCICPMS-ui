@@ -17,7 +17,7 @@ LCICPMS data GUI
 2022-04-21
 Christian Dewey
 '''
-
+from .chroma import *
 
 class LICPMSfunctions:
     ''' model class for LCICPMS functions'''

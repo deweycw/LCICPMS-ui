@@ -9,7 +9,6 @@ import pandas as pd
 from functools import partial
 
 from uiGenerator.uiWindow import *
-from uiGenerator.chroma import *
 from uiGenerator.uiCtrl import *
 from uiGenerator.model import *
 
