@@ -26,7 +26,7 @@ class PyLCICPMSUi(QMainWindow):
         super().__init__()
         # Set some main window's properties
         self.setWindowTitle('PyCalc')
-        self.setFixedSize(500, 535)
+        self.setFixedSize(500, 800)
         # Set the central widget
         self.generalLayout = QVBoxLayout()
         self.topLayout = QFormLayout()
@@ -43,12 +43,22 @@ class PyLCICPMSUi(QMainWindow):
         self._createListbox()
         self._createCheckBoxes()
         self._createDisplay()
+        self._createPlot()
+
+    def _createPlot(self):
+        self.plotSpace = pg.PlotWidget()
+        self.plotSpace.setBackground('w')
+        styles = { 'font-size':'15px'}
+        self.plotSpace.setLabel('left', 'ICP-MS signal intensity (cps x 1000)', **styles)
+        self.plotSpace.setLabel('bottom', "Retention time (min)", **styles)
+        self.generalLayout.addWidget(self.plotSpace)
 
     def _createDirEntry(self):
         self.DirEntry = QLineEdit()
         self.DirEntry.setFixedHeight(35)
         self.DirEntry.setAlignment(Qt.AlignRight)
         self.topLayout.addRow("Enter directory:", self.DirEntry)
+        self.topLayout.addWidget(self.DirEntry)
 
     def _createDisplay(self):
         '''Create the display'''
@@ -58,7 +68,6 @@ class PyLCICPMSUi(QMainWindow):
         self.display.setAlignment(Qt.AlignRight)
         self.display.setReadOnly(True)
         self.generalLayout.addWidget(self.display)
-
 
     def _createCheckBoxes(self):
         # Add some checkboxes to the layout  

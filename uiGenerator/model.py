@@ -8,6 +8,9 @@ import os
 import pandas as pd
 from functools import partial
 
+from .chroma import *
+from .pgChroma import *
+
 __version__ = '0.1'
 __author__ = 'Christian Dewey'
 
@@ -17,7 +20,7 @@ LCICPMS data GUI
 2022-04-21
 Christian Dewey
 '''
-from .chroma import *
+
 
 class LICPMSfunctions:
     ''' model class for LCICPMS functions'''
@@ -37,7 +40,11 @@ class LICPMSfunctions:
         print(testindex)
     #self._view.setDisplayText(str(testindex))
 
-    def plotActiveMetals(self):
+    def plotActiveMetalsMP(self):
         '''plots active metals for selected file'''
         activeMetalsPlot = ICPMS_Data_Class(self._data,self._view.activeMetals)
         activeMetalsPlot.chroma().show()
+	
+    def plotActiveMetals(self):
+        '''plots active metals for selected file'''
+        plotChroma(self._view, self._view.metalOptions, self._data, self._view.activeMetals)._plotChroma()

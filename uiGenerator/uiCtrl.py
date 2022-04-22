@@ -8,6 +8,7 @@ import os
 import pandas as pd
 from functools import partial
 
+
 __version__ = '0.1'
 __author__ = 'Christian Dewey'
 
@@ -40,11 +41,13 @@ class PyLCICPMSCtrl:
         self._view.clearChecks()
         self._data = None
         self._view.buttons['Plot'].setEnabled(False)
+        self._view.plotSpace.clear()
         print('data cleared')
 
     def _importAndActivatePlotting(self):
         '''activates plotting function after data imported'''
         self._model.importData()
+        self._view.plotSpace.clear()
         self._view.buttons['Plot'].setEnabled(True)
         self._view.setDisplayText(self._view.listwidget.currentItem().text())
 
@@ -67,8 +70,6 @@ class PyLCICPMSCtrl:
 
         for cbox in self._view.checkBoxes:
             cbox.stateChanged.connect(partial( self._view.clickBox, cbox) )
-
-        
 
        # for l in self._view.listwidget
         
