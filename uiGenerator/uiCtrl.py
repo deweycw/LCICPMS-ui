@@ -91,13 +91,15 @@ class PyLCICPMSCtrl:
 			print('\txmax selection: '+str(self._act_pos.x()))
 			self._model.plotHighRange(self._act_pos.x(),self._n)
 			self._view.integrateButtons['Integrate'].setEnabled(True)
+			self._view.integrateButtons['Integrate'].setStyleSheet("background-color: red")
 			self._n = self._n + 1
 
 		self.n_clicks = 1
 
 	def _selectIntRange(self,checked):
 		'''select integration range'''
-		if self._view.intbox.isChecked():
+		if self._view.intbox.isChecked() == True:
+			print(self._view.intbox.isChecked())
 			#print('\nselectfunct')
 			#print('times through _selectIntRange: ' + str(self._n))
 			#self._intRange = []
@@ -108,7 +110,9 @@ class PyLCICPMSCtrl:
 			#self._view.chroma.scene().sigMouseClicked.connect(self._onClick)
 			self._view.proxy = pg.SignalProxy(self._view.chroma.scene().sigMouseClicked, rateLimit=60, slot=self._onClick)
 		else:
-			self._n = 0
+			print(self._view.intbox.isChecked())
+			self._view.proxy = None
+			#self._n = 0
 			
 	def _Integrate(self):
 		''' call integration function'''
@@ -116,6 +120,7 @@ class PyLCICPMSCtrl:
 		#data_to_integrate = self._data
 		self._model.integrate(self._intRange)
 		self._intRange = []
+		self._view.integrateButtons['Integrate'].setStyleSheet("background-color: light gray")
 
 	def _makePlot(self):
 		'''makes plot & activates integration'''

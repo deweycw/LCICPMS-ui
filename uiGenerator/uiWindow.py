@@ -114,7 +114,6 @@ class PyLCICPMSUi(QMainWindow):
         for btnText, pos in intbuttons.items():
             self.integrateButtons[btnText] = QPushButton(btnText)
             self.integrateButtons[btnText].setFixedSize(80, 40)
-            print(btnText, str(pos[0]), str(pos[1]))
             self.integrateLayout.addWidget(self.integrateButtons[btnText], pos[1])
         # Add buttonsLayout to the general layout
         self.generalLayout.addLayout(self.integrateLayout)
