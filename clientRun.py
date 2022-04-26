@@ -26,7 +26,9 @@ def main():
     # Create instances of the model and the controller
     PyLCICPMSCtrl(model=model, view=view)
     # Execute the calculator's main loop
-    sys.exit(pycalc.exec_())
+    if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
+        pycalc.exec_()
+    #sys.exit(pycalc.exec_())
 
 if __name__ == '__main__':
     main()

@@ -21,22 +21,35 @@ class plotChroma:
 		colors = sns.color_palette(n_colors = len(self.metalList),as_cmap = True)
 		c_keys = self.metalList
 		color_dict = {c_keys[i]: colors[i] for i in range(len(c_keys))}
-		print('chroma  here')
+		self._view.plotSpace.clear()
+		chromaplots = []
 		for m in self.activeMetals:
 			icpms_time = self.icpms_data['Time ' + m] / 60
 			icpms_signal = self.icpms_data[m] / 1000
 			msize = len(m)
 			mass = m[:msize-2]
 			element = m[msize-2:]
-			print(mass)
-			print(element)
-			print(color_dict[m])
 			self._view.plotSpace.setBackground('w')
 			pen = color_dict[m]
-			self._view.plotSpace.plot(icpms_time, icpms_signal,pen=pen,width = 2)
-			styles = { 'font-size':'15px'}
-			self._view.plotSpace.setLabel('left', 'ICP-MS signal intensity (cps x 1000)', **styles)
-			self._view.plotSpace.setLabel('bottom', "Retention time (min)", **styles)
+			self._view.plotSpace.addLegend()
+			chromaPlot = self._view.plotSpace.plot(icpms_time, icpms_signal,pen=pen,width = 2,name = m)
+			#self._view.plotSpace.plot(icpms_time, icpms_signal,pen=pen,width = 2,name = m)
+			#chromaplots.append(chromaPlot)
+		return chromaPlot
+
+class plotIntRange:
+	''' plots vert lines to indicate integration range'''
+	def __init__(self,view = None, intRange=None):
+		self.intRange = intRange
+		self._view = view
+
+	def intRangePlot(self):
+		minInt = self.intRange[0]
+		maxInt = self.intRange[0]
+
+		self._view.plotSpace.InfiniteLine(minInt,angle = 90)
+		self._view.plotSpace.InfiniteLine(maxInt,angle = 90)
+			
 
 
 		

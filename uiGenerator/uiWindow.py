@@ -25,8 +25,8 @@ class PyLCICPMSUi(QMainWindow):
         """View initializer."""
         super().__init__()
         # Set some main window's properties
-        self.setWindowTitle('PyCalc')
-        self.setFixedSize(500, 800)
+        self.setWindowTitle('LC-ICP-MS Data Viewer')
+        self.setFixedSize(600, 700)
         # Set the central widget
         self.generalLayout = QVBoxLayout()
         self.topLayout = QFormLayout()
@@ -36,21 +36,30 @@ class PyLCICPMSUi(QMainWindow):
 
         self.homeDir = '/Users/christiandewey/presentations/DOE-PI-22/day6/day6/'
         self.activeMetals = []
-        self.metalOptions = ['55Mn','56Fe','59Co','60Ni','63Cu','66Zn','111Cd','208Pb']
+        self.metalOptions = ['55Mn','56Fe','59Co','60Ni','63Cu','66Zn','111Cd','115In', '208Pb']
         # Create the display and the buttons
+        #self._selectDirectory()
         self._createDirEntry()
         self._createButtons()
         self._createListbox()
         self._createCheckBoxes()
         self._createDisplay()
         self._createPlot()
+        self._createIntegrateCheckBoxes()
 
+    def _selectDirectory(self):
+        dialog = QFileDialog()
+        dialog.setWindowTitle("Select LC-ICPMS Directory")
+        dialog.setViewMode(QFileDialog.Detail)
+        self.homeDir = str(dialog.getExistingDirectory(self,"Select Directory:")) + '/'
+   
     def _createPlot(self):
         self.plotSpace = pg.PlotWidget()
         self.plotSpace.setBackground('w')
         styles = { 'font-size':'15px'}
         self.plotSpace.setLabel('left', 'ICP-MS signal intensity (cps x 1000)', **styles)
         self.plotSpace.setLabel('bottom', "Retention time (min)", **styles)
+        self.chroma = self.plotSpace
         self.generalLayout.addWidget(self.plotSpace)
 
     def _createDirEntry(self):
@@ -80,6 +89,16 @@ class PyLCICPMSUi(QMainWindow):
        # optionwidget.stateChanged.connect(self.clickBox)
         self.generalLayout.addLayout(optionsLayout)
 
+    def _createIntegrateCheckBoxes(self):
+        # Add some checkboxes to the layout  
+        #self.integrateBox= []      
+        integrateLayout = QHBoxLayout()
+        self.intbox = QCheckBox('Select integration range?')
+        self.checkBoxes.append(self.intbox)
+        integrateLayout.addWidget(self.intbox)
+       # optionwidget.stateChanged.connect(self.clickBox)
+        self.generalLayout.addLayout(integrateLayout)
+
     def _createListbox(self):
         '''Create listbox'''
         listBoxLayout = QGridLayout()
@@ -103,7 +122,9 @@ class PyLCICPMSUi(QMainWindow):
         # Button text | position on the QGridLayout
         buttons = {'Import': (0, 0),
                    'Plot': (0, 1),
-                   'Reset': (0, 2),
+                   'Set Range': (0,2),
+                   'Integrate': (0,3),
+                   'Reset': (0, 4)
                   }
         # Create the buttons and add them to the grid layout
         for btnText, pos in buttons.items():
@@ -111,11 +132,12 @@ class PyLCICPMSUi(QMainWindow):
             self.buttons[btnText].setFixedSize(80, 40)
             buttonsLayout.addWidget(self.buttons[btnText], pos[0], pos[1])
         # Add buttonsLayout to the general layout
+        self.buttons['Set Range'].setCheckable(True)
         self.generalLayout.addLayout(buttonsLayout)
     
     def clicked(self):
         item = self.listwidget.currentItem()
-        print('clicked: ' + item.text())
+        print('file: ' + item.text())
         return self.listwidget.currentItem()
     
     def setDisplayText(self, text):
@@ -136,12 +158,12 @@ class PyLCICPMSUi(QMainWindow):
         if state == Qt.Checked:
             print('checked: ' + cbox.text())
             self.activeMetals.append(cbox.text())
-            print(self.activeMetals)
+           # print(self.activeMetals)
             return self.activeMetals
         elif state == Qt.Unchecked:
             print('Unchecked: ' + cbox.text())
             self.activeMetals.remove(cbox.text())
-            print(self.activeMetals)
+            #print(self.activeMetals)
             return self.activeMetals
         else:
             print('Unchecked')
