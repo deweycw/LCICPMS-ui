@@ -27,6 +27,7 @@ class Calibration(QWidget):
 		# Set some main window's properties
 		self._view = view
 		self.activeMetals = []
+		self.standards = {'Blank':[], 'Std 1':[], 'Std 2':[], 'Std 3':[], 'Std 4':[], 'Std 5':[]}
 		self.metalOptions = ['55Mn','56Fe','59Co','60Ni','63Cu','66Zn','111Cd','115In', '208Pb']
 		self.setWindowTitle('LC-ICP-MS Calibration')
 		self.setFixedSize(700, 1000)
@@ -44,8 +45,8 @@ class Calibration(QWidget):
 		self._createCheckBoxes()
 		self._createDisplay()
 		self._createPlot()
-		self._createIntegrateCheckBoxes()
-		self._createIntegrateLayout()
+		self._createStandardsCheckBoxes()
+		self._createstandardsLayout()
 
 
 	def _selectDirectory(self):
@@ -75,7 +76,6 @@ class Calibration(QWidget):
 		self.generalLayout.addWidget(self.display)
 
 	def _createCheckBoxes(self):
-		# Add some checkboxes to the layout  
 		self.checkBoxes = []      
 		optionsLayout = QHBoxLayout()
 		for m in self.metalOptions:
@@ -85,17 +85,19 @@ class Calibration(QWidget):
 	   # optionwidget.stateChanged.connect(self.clickBox)
 		self.generalLayout.addLayout(optionsLayout)
 
-	def _createIntegrateCheckBoxes(self):
-		# Add some checkboxes to the layout  
-		#self.integrateBox= []      
-		self.integrateLayout = QHBoxLayout()
-		self.intbox = QCheckBox('Select integration range?')
+	def _createStandardsCheckBoxes(self):  
+		self.stdsCboxes = []
+		self.standardsLayout = QHBoxLayout()
+		for s in self.standards.keys():
+			cbox = QCheckBox(s)
+			self.stdsCboxes.append(cbox)
+			self.standardsLayout.addWidget(cbox)
 		#self.checkBoxes.append(self.intbox)
-		self.integrateLayout.addWidget(self.intbox)
+		#self.standardsLayout.addWidget(self.intbox)
    #    # optionwidget.stateChanged.connect(self.clickBox)
-   #     self.generalLayout.addLayout(self.integrateLayout)
+   #     self.generalLayout.addLayout(self.standardsLayout)
 	
-	def _createIntegrateLayout(self):
+	def _createstandardsLayout(self):
 		"""Create the integrate buttons."""
 
 
@@ -108,9 +110,9 @@ class Calibration(QWidget):
 		for btnText, pos in intbuttons.items():
 			self.integrateButtons[btnText] = QPushButton(btnText)
 			self.integrateButtons[btnText].setFixedSize(80, 40)
-			self.integrateLayout.addWidget(self.integrateButtons[btnText], pos[1])
+			self.standardsLayout.addWidget(self.integrateButtons[btnText], pos[1])
 		# Add buttonsLayout to the general layout
-		self.generalLayout.addLayout(self.integrateLayout)
+		self.generalLayout.addLayout(self.standardsLayout)
 
 	def _createListbox(self):
 		'''Create listbox'''

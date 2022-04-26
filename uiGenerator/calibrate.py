@@ -77,7 +77,8 @@ class CalibrateFunctions:
 				top_area = timeDelta * (max_height - min_height) * 0.5
 				An = rect_area + top_area
 				summed_area = summed_area + An  # area =  cps * sec = counts
-			print(metal + ': ' + str(summed_area))
+			print(metal + ': ' + str(summed_area/60))
+			self._calview.n_area = summed_area
 
 	def plotLowRange(self,xmin,n):
 		'''plots integration range'''
