@@ -108,6 +108,8 @@ class PyLCICPMSCtrl:
 			#if self.n_clicks < 2:
 			#self._view.chroma.scene().sigMouseClicked.connect(self._onClick)
 			self._view.proxy = pg.SignalProxy(self._view.chroma.scene().sigMouseClicked, rateLimit=60, slot=self._onClick)
+		else:
+			self._n = 0
 			
 	def _Integrate(self):
 		''' call integration function'''

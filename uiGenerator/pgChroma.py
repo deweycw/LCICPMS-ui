@@ -31,24 +31,13 @@ class plotChroma:
 			element = m[msize-2:]
 			self._view.plotSpace.setBackground('w')
 			pen = color_dict[m]
-			self._view.plotSpace.addLegend()
+			self._view.plotSpace.addLegend(offset = [-1,1])
 			chromaPlot = self._view.plotSpace.plot(icpms_time, icpms_signal,pen=pen,width = 2,name = m)
 			#self._view.plotSpace.plot(icpms_time, icpms_signal,pen=pen,width = 2,name = m)
 			#chromaplots.append(chromaPlot)
 		return chromaPlot
 
-class plotIntRange:
-	''' plots vert lines to indicate integration range'''
-	def __init__(self,view = None, intRange=None):
-		self.intRange = intRange
-		self._view = view
 
-	def intRangePlot(self):
-		minInt = self.intRange[0]
-		maxInt = self.intRange[0]
-
-		self._view.plotSpace.InfiniteLine(minInt,angle = 90)
-		self._view.plotSpace.InfiniteLine(maxInt,angle = 90)
 			
 
 
