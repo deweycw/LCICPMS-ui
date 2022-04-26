@@ -94,7 +94,7 @@ class PyLCICPMSUi(QMainWindow):
         #self.integrateBox= []      
         integrateLayout = QHBoxLayout()
         self.intbox = QCheckBox('Select integration range?')
-        self.checkBoxes.append(self.intbox)
+        #self.checkBoxes.append(self.intbox)
         integrateLayout.addWidget(self.intbox)
        # optionwidget.stateChanged.connect(self.clickBox)
         self.generalLayout.addLayout(integrateLayout)
