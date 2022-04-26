@@ -27,7 +27,7 @@ class PyLCICPMSCtrl:
 		"""Controller initializer."""
 		self._model = model
 		self._view = view
-		self._data = None
+		#self._data = None
 		self._intRange = []		
 		#self._intPointX = 0
 		#self._intPointY = 0 
@@ -50,7 +50,7 @@ class PyLCICPMSCtrl:
 	def _clearForm(self):
 		''' clears check boxes and nulls data '''
 		self._view.clearChecks()
-		self._data = None
+		#self._data = None
 		self._view.buttons['Plot'].setEnabled(False)
 		self._view.buttons['Set Range'].setEnabled(False)
 		self._view.buttons['Integrate'].setEnabled(False)
@@ -75,21 +75,21 @@ class PyLCICPMSCtrl:
 	def _onClick(self, event):
 		''' selects range for integration'''
 		self._act_pos = self._view.chroma.mapFromScene(event[0].scenePos())
-		print('\tonclick')
-		print('\tact pos: ' + str(self._act_pos.x()))
-		print('\tlen int range: ' + str(len(self._intRange)))
+		#print('\tonclick')
+		#print('\tact pos: ' + str(self._act_pos.x()))
+		#print('\tlen int range: ' + str(len(self._intRange)))
 		cc = len(self._intRange)
 		cc = cc + 1
 		
 		if cc == 1: 
 			self._intRange.append(self._act_pos.x()) #.x() / 60 # in minutes
-			print('\t\txmin selection'+str(self._act_pos.x()))
+			print('\txmin selection: '+str(self._act_pos.x()))
 			self._model.plotLowRange(self._act_pos.x(),self._n)
 			self._minAssigned = True
 			
 		if (cc == 2) and self._minAssigned is True:
 			self._intRange.append(self._act_pos.x()) #.x() / 60 # in minutes
-			print('\t\txmax selection'+str(self._act_pos.x()))
+			print('\txmax selection: '+str(self._act_pos.x()))
 			self._model.plotHighRange(self._act_pos.x(),self._n)
 			self._view.buttons['Integrate'].setEnabled(True)
 			self._n = self._n + 1
@@ -99,8 +99,8 @@ class PyLCICPMSCtrl:
 	def _selectIntRange(self,checked):
 		'''select integration range'''
 		if self._view.intbox.isChecked():
-			print('\nselectfunct')
-			print('times through _selectIntRange: ' + str(self._n))
+			#print('\nselectfunct')
+			#print('times through _selectIntRange: ' + str(self._n))
 			#self._intRange = []
 			#self._clickCounter = 0
 			#print(self._intRange)
@@ -113,8 +113,8 @@ class PyLCICPMSCtrl:
 			
 	def _Integrate(self):
 		''' call integration function'''
-		print(self._xMin, self._xMax)
-		intRange = [self._xMin,self._xMax]
+		#print(self._xMin, self._xMax)
+		#data_to_integrate = self._data
 		self._model.integrate(self._intRange)
 		self._intRange = []
 

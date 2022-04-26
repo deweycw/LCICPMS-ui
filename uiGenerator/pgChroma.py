@@ -25,6 +25,7 @@ class plotChroma:
 		chromaplots = []
 		for m in self.activeMetals:
 			icpms_time = self.icpms_data['Time ' + m] / 60
+			#print(icpms_time.head())
 			icpms_signal = self.icpms_data[m] / 1000
 			msize = len(m)
 			mass = m[:msize-2]
