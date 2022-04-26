@@ -43,7 +43,7 @@ class CalibrateFunctions:
 	def integrate(self, intRange):
 		'''integrates over specified x range'''
 		self.intRange = intRange
-
+		pa_dict = {}
 		for metal in self._calview.activeMetals:
 			time = self._data['Time ' + metal] / 60
 			range_min = self.intRange[0]
@@ -78,7 +78,12 @@ class CalibrateFunctions:
 				An = rect_area + top_area
 				summed_area = summed_area + An  # area =  cps * sec = counts
 			print(metal + ': ' + str(summed_area/60))
-			self._calview.n_area = summed_area
+	
+			keys = self._calview.activeMetals
+			for m in keys:
+				pa_dict[m] = summed_area
+				
+			self._calview.n_area = pa_dict
 
 	def plotLowRange(self,xmin,n):
 		'''plots integration range'''

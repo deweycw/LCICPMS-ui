@@ -28,7 +28,6 @@ class CalCtrlFunctions:
 		self._model = model
 		self._calview = view
 		self._mainview = mainview
-		self.calDict = {}
 
 		self._intRange = []		
 		#self._intPointX = 0
@@ -56,25 +55,28 @@ class CalCtrlFunctions:
 		self._calview.buttons['Plot'].setEnabled(True)
 		self._calview.setDisplayText(self._calview.listwidget.currentItem().text())
 
-	def _selectCalPeak(self,cbox):
+	def _selectCalPeak(self,rbutton):
 		'''select integration range'''
-		if cbox.isChecked() == True:
-			self.current_box = cbox.text()
-			#print(self._calview.intbox.isChecked())
-			#print('\nselectfunct')
-			#print('times through _selectIntRange: ' + str(self._n))
-			#self._intRange = []
-			#self._clickCounter = 0
-			#print(self._intRange)
-			#self._calview.chroma.scene().sigMouseMoved.connect(self._mouseover)
-			#if self.n_clicks < 2:
-			#self._calview.chroma.scene().sigMouseClicked.connect(self._onClick)
-			self._calview.proxy = pg.SignalProxy(self._calview.chroma.scene().sigMouseClicked, rateLimit=60, slot=self._onClick)
-		else:
-			#print(self._calview.intbox.isChecked())
-			self._calview.proxy = None
-			self.current_box = None
-			#self._n = 0
+		
+		#self._calview.proxy = pg.SignalProxy(self._calview.chroma.scene().sigMouseClicked, rateLimit=60, slot=self._onClick)
+
+		#if rbutton.isChecked() == True:
+		self.currentStd = rbutton.text()
+		#print(self._calview.intbox.isChecked())
+		#print('\nselectfunct')
+		#print('times through _selectIntRange: ' + str(self._n))
+		#self._intRange = []
+		#self._clickCounter = 0
+		#print(self._intRange)
+		#self._calview.chroma.scene().sigMouseMoved.connect(self._mouseover)
+		#if self.n_clicks < 2:
+		#self._calview.chroma.scene().sigMouseClicked.connect(self._onClick)
+		self._calview.proxy = pg.SignalProxy(self._calview.chroma.scene().sigMouseClicked, rateLimit=60, slot=self._onClick)
+	#else:
+#		#print(self._calview.intbox.isChecked())#
+#		self._calview.proxy = None
+#		self.currentStd = None#
+#		self._n = 0
 
 	def _clearForm(self):
 		''' clears check boxes and nulls data '''
@@ -83,7 +85,8 @@ class CalCtrlFunctions:
 		self._calview.buttons['Plot'].setEnabled(False)
 		self._calview.integrateButtons['Integrate'].setEnabled(False)
 		self._calview.plotSpace.clear()
-		self.current_box = None
+		self.currentStd = None
+		for k in self._calview.standards.keys(): self._calview.standards[k] = []
 		self._n = 0
 		print('data cleared')
 
@@ -135,9 +138,20 @@ class CalCtrlFunctions:
 		self._model.integrate(self._intRange)
 		self._intRange = []
 		self._calview.integrateButtons['Integrate'].setStyleSheet("background-color: light gray")
-		self._calview.standards[self.current_box].append(self._calview.n_area )
+		self._calview.standards[self.currentStd].append(self._calview.n_area )
+		self._calview.ok_button.setEnabled(True)
 		print(self._calview.standards)
-		self.current_box = None
+		
+		#self._calview.plotSpace.clear()
+
+	def getStdConc(self):
+		print(self.currentStd)
+		stdConc = self._calview.stdConcEntry.text()
+		self._calview.standards[self.currentStd].append(float(stdConc))
+		self._calview.stdConcEntry.clear()
+		print(self._calview.standards)
+		self._calview.ok_button.setEnabled(False)
+
 
 	def _makePlot(self):
 		'''makes plot & activates integration'''
@@ -160,15 +174,17 @@ class CalCtrlFunctions:
 		for cbox in self._calview.checkBoxes:
 			cbox.stateChanged.connect(partial( self._calview.clickBox, cbox) )
 
-		for cbox in self._calview.stdsCboxes:
-			cbox.stateChanged.connect(partial(self._selectCalPeak, cbox))
+		for rbutton in self._calview.stdsRadioButtons:
+			rbutton.toggled.connect(partial(self._selectCalPeak, rbutton) )
 
 		self._calview.buttons['Import'].clicked.connect(self._importAndActivatePlotting)
 		self._calview.buttons['Plot'].setEnabled(False)
+		self._calview.ok_button.setEnabled(False)
 		self._calview.integrateButtons['Integrate'].setEnabled(False)
 		self._calview.buttons['Plot'].clicked.connect(self._makePlot)
 		self._calview.buttons['Reset'].clicked.connect(self._clearForm)	
 		self._calview.integrateButtons['Integrate'].clicked.connect(self._Integrate)
+		self._calview.ok_button.clicked.connect(self.getStdConc)
 
 
 

@@ -27,6 +27,7 @@ class Calibration(QWidget):
 		# Set some main window's properties
 		self._view = view
 		self.activeMetals = []
+		self.n_area = []
 		self.standards = {'Blank':[], 'Std 1':[], 'Std 2':[], 'Std 3':[], 'Std 4':[], 'Std 5':[]}
 		self.metalOptions = ['55Mn','56Fe','59Co','60Ni','63Cu','66Zn','111Cd','115In', '208Pb']
 		self.setWindowTitle('LC-ICP-MS Calibration')
@@ -47,6 +48,7 @@ class Calibration(QWidget):
 		self._createPlot()
 		self._createStandardsCheckBoxes()
 		self._createstandardsLayout()
+		self._createStdConcEntry()
 
 
 	def _selectDirectory(self):
@@ -64,7 +66,26 @@ class Calibration(QWidget):
 		self.chroma = self.plotSpace
 		self.generalLayout.addWidget(self.plotSpace)
 
+	def _createStdConcEntry(self):
+		self.stdEntryLayout = QVBoxLayout()
+		self.stdConcEntry = QLineEdit()
+		self.stdConcEntry.setFixedHeight(35)
+		self.stdConcEntry.setFixedWidth(100)
+		self.stdConcEntry.setAlignment(Qt.AlignRight)
+		#self.standardsLayout.addRow("Enter standard concentration:", self.stdConcEntry)
+		self.stdlabel = QLabel()
+		stdlabel = 'Standard concentration:'
+		self.stdlabel.setText(stdlabel)
 
+		self.ok_button = QPushButton('Enter')
+		self.ok_button.setFixedSize(80, 40)
+		
+		self.stdEntryLayout.addWidget(self.stdlabel)
+		self.stdEntryLayout.addWidget(self.stdConcEntry)
+		self.stdEntryLayout.addWidget(self.ok_button)
+
+		
+		self.generalLayout.addLayout(self.stdEntryLayout)
 
 	def _createDisplay(self):
 		'''Create the display'''
@@ -86,12 +107,12 @@ class Calibration(QWidget):
 		self.generalLayout.addLayout(optionsLayout)
 
 	def _createStandardsCheckBoxes(self):  
-		self.stdsCboxes = []
+		self.stdsRadioButtons = []
 		self.standardsLayout = QHBoxLayout()
 		for s in self.standards.keys():
-			cbox = QCheckBox(s)
-			self.stdsCboxes.append(cbox)
-			self.standardsLayout.addWidget(cbox)
+			rbutton = QRadioButton(s)
+			self.stdsRadioButtons.append(rbutton)
+			self.standardsLayout.addWidget(rbutton)
 		#self.checkBoxes.append(self.intbox)
 		#self.standardsLayout.addWidget(self.intbox)
    #    # optionwidget.stateChanged.connect(self.clickBox)
@@ -105,7 +126,7 @@ class Calibration(QWidget):
 		self.integrateButtons = {}
 
 		# Button text | position on the QGridLayout
-		intbuttons = {'Integrate': (0,0), 'Calibrate': (0,1)}
+		intbuttons = {'Integrate': (0,0), 'Assign Conc.': (0,1)}
 		# Create the buttons and add them to the grid layout
 		for btnText, pos in intbuttons.items():
 			self.integrateButtons[btnText] = QPushButton(btnText)
