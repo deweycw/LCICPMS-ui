@@ -46,6 +46,7 @@ class PyLCICPMSUi(QMainWindow):
         self._createDisplay()
         self._createPlot()
         self._createIntegrateCheckBoxes()
+        self._createIntegrateLayout()
 
     def _selectDirectory(self):
         dialog = QFileDialog()
@@ -92,12 +93,31 @@ class PyLCICPMSUi(QMainWindow):
     def _createIntegrateCheckBoxes(self):
         # Add some checkboxes to the layout  
         #self.integrateBox= []      
-        integrateLayout = QHBoxLayout()
+        self.integrateLayout = QHBoxLayout()
         self.intbox = QCheckBox('Select integration range?')
         #self.checkBoxes.append(self.intbox)
-        integrateLayout.addWidget(self.intbox)
-       # optionwidget.stateChanged.connect(self.clickBox)
-        self.generalLayout.addLayout(integrateLayout)
+        self.integrateLayout.addWidget(self.intbox)
+   #    # optionwidget.stateChanged.connect(self.clickBox)
+   #     self.generalLayout.addLayout(self.integrateLayout)
+    
+    def _createIntegrateLayout(self):
+        """Create the integrate buttons."""
+
+
+
+        self.integrateButtons = {}
+
+        # Button text | position on the QGridLayout
+        intbuttons = {'Integrate': (0,0)
+                  }
+        # Create the buttons and add them to the grid layout
+        for btnText, pos in intbuttons.items():
+            self.integrateButtons[btnText] = QPushButton(btnText)
+            self.integrateButtons[btnText].setFixedSize(80, 40)
+            print(btnText, str(pos[0]), str(pos[1]))
+            self.integrateLayout.addWidget(self.integrateButtons[btnText], pos[1])
+        # Add buttonsLayout to the general layout
+        self.generalLayout.addLayout(self.integrateLayout)
 
     def _createListbox(self):
         '''Create listbox'''
@@ -122,9 +142,8 @@ class PyLCICPMSUi(QMainWindow):
         # Button text | position on the QGridLayout
         buttons = {'Import': (0, 0),
                    'Plot': (0, 1),
-                   'Set Range': (0,2),
-                   'Integrate': (0,3),
-                   'Reset': (0, 4)
+                 #  'Integrate': (0,2),
+                   'Reset': (0, 3)
                   }
         # Create the buttons and add them to the grid layout
         for btnText, pos in buttons.items():
@@ -132,7 +151,6 @@ class PyLCICPMSUi(QMainWindow):
             self.buttons[btnText].setFixedSize(80, 40)
             buttonsLayout.addWidget(self.buttons[btnText], pos[0], pos[1])
         # Add buttonsLayout to the general layout
-        self.buttons['Set Range'].setCheckable(True)
         self.generalLayout.addLayout(buttonsLayout)
     
     def clicked(self):

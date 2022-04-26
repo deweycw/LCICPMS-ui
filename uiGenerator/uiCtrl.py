@@ -52,8 +52,7 @@ class PyLCICPMSCtrl:
 		self._view.clearChecks()
 		#self._data = None
 		self._view.buttons['Plot'].setEnabled(False)
-		self._view.buttons['Set Range'].setEnabled(False)
-		self._view.buttons['Integrate'].setEnabled(False)
+		self._view.integrateButtons['Integrate'].setEnabled(False)
 		self._view.plotSpace.clear()
 		self._n = 0
 		print('data cleared')
@@ -91,7 +90,7 @@ class PyLCICPMSCtrl:
 			self._intRange.append(self._act_pos.x()) #.x() / 60 # in minutes
 			print('\txmax selection: '+str(self._act_pos.x()))
 			self._model.plotHighRange(self._act_pos.x(),self._n)
-			self._view.buttons['Integrate'].setEnabled(True)
+			self._view.integrateButtons['Integrate'].setEnabled(True)
 			self._n = self._n + 1
 
 		self.n_clicks = 1
@@ -121,7 +120,6 @@ class PyLCICPMSCtrl:
 	def _makePlot(self):
 		'''makes plot & activates integration'''
 		self._model.plotActiveMetals()
-		self._view.buttons['Set Range'].setEnabled(True)
 
 	def _connectSignals(self):
 		"""Connect signals and slots."""
@@ -141,12 +139,10 @@ class PyLCICPMSCtrl:
 
 		self._view.buttons['Import'].clicked.connect(self._importAndActivatePlotting)
 		self._view.buttons['Plot'].setEnabled(False)
-		self._view.buttons['Set Range'].setEnabled(False)
-		self._view.buttons['Integrate'].setEnabled(False)
+		self._view.integrateButtons['Integrate'].setEnabled(False)
 		self._view.buttons['Plot'].clicked.connect(self._makePlot)
 		self._view.buttons['Reset'].clicked.connect(self._clearForm)	
-		#self._view.buttons['Set Range'].clicked.connect(self._selectIntRange)
-		self._view.buttons['Integrate'].clicked.connect(self._Integrate)
+		self._view.integrateButtons['Integrate'].clicked.connect(self._Integrate)
 
 
 
