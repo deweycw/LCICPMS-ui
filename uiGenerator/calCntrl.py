@@ -13,7 +13,7 @@ __version__ = '0.1'
 __author__ = 'Christian Dewey'
 
 '''
-LCICPMS data GUI
+control for calibration 
 
 2022-04-21
 Christian Dewey
@@ -21,24 +21,14 @@ Christian Dewey
 
 
 # Create a Controller class to connect the GUI and the model
-class PyLCICPMSCtrl:
+class CalCtrlFunctions:
 	"""PyCalc Controller class."""
-	def __init__(self, model, view, calwindow):
+	def __init__(self, model, view, mainview):
 		"""Controller initializer."""
 		self._model = model
 		self._view = view
-		self._calWindow = calwindow
-		#self._data = None
-		self._intRange = []		
-		#self._intPointX = 0
-		#self._intPointY = 0 
-		#self._intX = []
-		#self._intY = []
-		self.n_clicks = 0
-		self._n = 0
-		self._xMin = 0
-		self._xMax = 0
-		self.button_is_checked = False
+		self._mainview = mainview
+		self.calDict = {}
 		
 		# Connect signals and slots
 		self._connectSignals()
@@ -47,6 +37,31 @@ class PyLCICPMSCtrl:
 		"""Build expression."""
 		expression = self._view.displayText() + sub_exp
 		self._view.setDisplayText(expression)
+	
+	def _importAndActivatePlotting(self):
+		'''activates plotting function after data imported'''
+		self._model.importData()
+		#self._view.plotSpace.clear()
+		self._view.buttons['Plot'].setEnabled(True)
+		self._view.setDisplayText(self._view.listwidget.currentItem().text())
+
+	def _selectCalPeak(self):
+		'''select integration range'''
+		if self._view.intbox.isChecked() == True:
+			print(self._view.intbox.isChecked())
+			#print('\nselectfunct')
+			#print('times through _selectIntRange: ' + str(self._n))
+			#self._intRange = []
+			#self._clickCounter = 0
+			#print(self._intRange)
+			#self._view.chroma.scene().sigMouseMoved.connect(self._mouseover)
+			#if self.n_clicks < 2:
+			#self._view.chroma.scene().sigMouseClicked.connect(self._onClick)
+			self._view.proxy = pg.SignalProxy(self._view.chroma.scene().sigMouseClicked, rateLimit=60, slot=self._onClick)
+		else:
+			print(self._view.intbox.isChecked())
+			self._view.proxy = None
+			#self._n = 0
 
 	def _clearForm(self):
 		''' clears check boxes and nulls data '''
@@ -126,10 +141,9 @@ class PyLCICPMSCtrl:
 	def _makePlot(self):
 		'''makes plot & activates integration'''
 		self._model.plotActiveMetals()
-	
-	def _showCalWindow(self):
-		''' opens calibration window '''
-		self.dialog.show()
+
+
+
 
 	def _connectSignals(self):
 		"""Connect signals and slots."""
@@ -140,20 +154,18 @@ class PyLCICPMSCtrl:
 				else:
 					text = self._view.listwidget.currentItem().text()
 
-				btn.clicked.connect(partial(self._buildExpression, text))
+				#btn.clicked.connect(partial(self._buildExpression, text))
 
 		for cbox in self._view.checkBoxes:
 			cbox.stateChanged.connect(partial( self._view.clickBox, cbox) )
 
-		self._view.intbox.stateChanged.connect(self._selectIntRange)
+		self._view.intbox.stateChanged.connect(self._selectCalPeak)
 
 		self._view.buttons['Import'].clicked.connect(self._importAndActivatePlotting)
 		self._view.buttons['Plot'].setEnabled(False)
 		self._view.integrateButtons['Integrate'].setEnabled(False)
 		self._view.buttons['Plot'].clicked.connect(self._makePlot)
 		self._view.buttons['Reset'].clicked.connect(self._clearForm)	
-		self._view.integrateButtons['Calibrate'].clicked.connect(self._showCalWindow)
-		self.dialog = self._calWindow
 		self._view.integrateButtons['Integrate'].clicked.connect(self._Integrate)
 
 

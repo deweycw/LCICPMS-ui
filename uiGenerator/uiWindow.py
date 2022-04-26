@@ -48,6 +48,7 @@ class PyLCICPMSUi(QMainWindow):
         self._createIntegrateCheckBoxes()
         self._createIntegrateLayout()
 
+
     def _selectDirectory(self):
         dialog = QFileDialog()
         dialog.setWindowTitle("Select LC-ICPMS Directory")
@@ -108,8 +109,7 @@ class PyLCICPMSUi(QMainWindow):
         self.integrateButtons = {}
 
         # Button text | position on the QGridLayout
-        intbuttons = {'Integrate': (0,0)
-                  }
+        intbuttons = {'Integrate': (0,0), 'Calibrate': (0,1)}
         # Create the buttons and add them to the grid layout
         for btnText, pos in intbuttons.items():
             self.integrateButtons[btnText] = QPushButton(btnText)
