@@ -10,6 +10,7 @@ from functools import partial
 import seaborn as sns
 from sklearn import  linear_model
 from sklearn.metrics import mean_squared_error, r2_score
+import json
 import matplotlib.pyplot as plt
 from .chroma import *
 from .pgChroma import *
@@ -98,6 +99,7 @@ class CalibrateFunctions:
 
 	def calcLinearRegression(self):
 		calCurve_dict = {}
+		saveDict = {}
 		metals = self._calview.activeMetals
 		for m in metals:
 			pas = []
@@ -122,7 +124,7 @@ class CalibrateFunctions:
 			print('Intercept:', regr.intercept_)
 
 			# Print the Slope:
-			print('Slope:', regr.coef_) 
+			print('Slope:', regr.coef_[0]) 
 			# The mean squared error
 			mse = mean_squared_error(y, y_pred)
 			print("Mean squared error: %.2f" % mse)
@@ -130,13 +132,26 @@ class CalibrateFunctions:
 			r2 = r2_score(y, y_pred)
 			print("Coefficient of determination: %.2f" % r2)
 			
-			plt.scatter(X, y, color="black")
-			plt.plot(X, y_pred, color="blue", linewidth=3)
+			fig, host = plt.subplots()
+			host.scatter(X/1000, y, color="black")
+			host.plot(X/1000, y_pred, color="blue", linewidth=3)
 
-			plt.title(m)
+			host.set_xlabel('ICP-MS counts / 1000')
+			host.set_ylabel('Standard Conc. (ppb)')
+			host.text(0.8,0.5,'$R^2$ = %.4f' % r2, transform = host.transAxes)
+			host.text(0.8,0.4,'MSE = %.2f' % mse, transform = host.transAxes)
+		
+			host.set_title(m)
 
+			fname = self._mainview.homeDir + m + '_calibration.png'
+			plt.savefig(fname)
 			plt.show()
-
+		
 			calCurve_dict[m] = [regr,(mean_squared_error(X, y),r2_score(X, y))]
+			saveDict[m] = {'m': regr.coef_[0], 'b': regr.intercept_, 'r2': r2, 'mse': mse}
 			
 		self._calview.calCurves = calCurve_dict
+
+		savefile = self._mainview.homeDir + 'calibration_curve.calib'
+		with open(savefile, 'w') as file:
+			file.write(json.dumps(saveDict))
