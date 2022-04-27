@@ -8,7 +8,9 @@ import os
 import pandas as pd
 from functools import partial
 import seaborn as sns
-
+from sklearn import  linear_model
+from sklearn.metrics import mean_squared_error, r2_score
+import matplotlib.pyplot as plt
 from .chroma import *
 from .pgChroma import *
 
@@ -79,9 +81,7 @@ class CalibrateFunctions:
 				summed_area = summed_area + An  # area =  cps * sec = counts
 			print(metal + ': ' + str(summed_area/60))
 	
-			keys = self._calview.activeMetals
-			for m in keys:
-				pa_dict[m] = summed_area
+			pa_dict[metal] = summed_area/60
 				
 			self._calview.n_area = pa_dict
 
@@ -95,3 +95,48 @@ class CalibrateFunctions:
 		col = self.intColors[n]
 		maxline = pg.InfiniteLine(xmax, pen=col,angle = 90)
 		self._calview.plotSpace.addItem(maxline)
+
+	def calcLinearRegression(self):
+		calCurve_dict = {}
+		metals = self._calview.activeMetals
+		for m in metals:
+			pas = []
+			concs = [] 
+			for std in self._calview.standards.keys():
+				std_list_n = self._calview.standards[std]
+				if len(std_list_n) > 0:
+					std_dict = std_list_n[0]
+					pas.append(std_dict[m])
+					concs.append(std_list_n[1])
+			print(pas, concs)
+			regr = linear_model.LinearRegression()
+			X = np.array(pas).reshape(-1, 1)
+			y = np.array(concs)
+			regr = linear_model.LinearRegression()
+			regr.fit(X, y)
+
+			y_pred = regr.predict(X)
+
+			# Print the Intercept:
+			print("Metal: " + m)
+			print('Intercept:', regr.intercept_)
+
+			# Print the Slope:
+			print('Slope:', regr.coef_) 
+			# The mean squared error
+			mse = mean_squared_error(y, y_pred)
+			print("Mean squared error: %.2f" % mse)
+			# The coefficient of determination: 1 is perfect prediction
+			r2 = r2_score(y, y_pred)
+			print("Coefficient of determination: %.2f" % r2)
+			
+			plt.scatter(X, y, color="black")
+			plt.plot(X, y_pred, color="blue", linewidth=3)
+
+			plt.title(m)
+
+			plt.show()
+
+			calCurve_dict[m] = [regr,(mean_squared_error(X, y),r2_score(X, y))]
+			
+		self._calview.calCurves = calCurve_dict

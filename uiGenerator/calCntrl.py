@@ -51,32 +51,14 @@ class CalCtrlFunctions:
 	def _importAndActivatePlotting(self):
 		'''activates plotting function after data imported'''
 		self._model.importData()
-		#self._calview.plotSpace.clear()
 		self._calview.buttons['Plot'].setEnabled(True)
 		self._calview.setDisplayText(self._calview.listwidget.currentItem().text())
 
 	def _selectCalPeak(self,rbutton):
 		'''select integration range'''
 		
-		#self._calview.proxy = pg.SignalProxy(self._calview.chroma.scene().sigMouseClicked, rateLimit=60, slot=self._onClick)
-
-		#if rbutton.isChecked() == True:
 		self.currentStd = rbutton.text()
-		#print(self._calview.intbox.isChecked())
-		#print('\nselectfunct')
-		#print('times through _selectIntRange: ' + str(self._n))
-		#self._intRange = []
-		#self._clickCounter = 0
-		#print(self._intRange)
-		#self._calview.chroma.scene().sigMouseMoved.connect(self._mouseover)
-		#if self.n_clicks < 2:
-		#self._calview.chroma.scene().sigMouseClicked.connect(self._onClick)
 		self._calview.proxy = pg.SignalProxy(self._calview.chroma.scene().sigMouseClicked, rateLimit=60, slot=self._onClick)
-	#else:
-#		#print(self._calview.intbox.isChecked())#
-#		self._calview.proxy = None
-#		self.currentStd = None#
-#		self._n = 0
 
 	def _clearForm(self):
 		''' clears check boxes and nulls data '''
@@ -158,7 +140,9 @@ class CalCtrlFunctions:
 		self._model.plotActiveMetals()
 
 
-
+	def _calcCurve(self):
+		self._model.calcLinearRegression()
+		
 
 	def _connectSignals(self):
 		"""Connect signals and slots."""
@@ -185,6 +169,7 @@ class CalCtrlFunctions:
 		self._calview.buttons['Reset'].clicked.connect(self._clearForm)	
 		self._calview.integrateButtons['Integrate'].clicked.connect(self._Integrate)
 		self._calview.ok_button.clicked.connect(self.getStdConc)
+		self._calview.integrateButtons['Calculate Curve'].clicked.connect(self._calcCurve)
 
 
 

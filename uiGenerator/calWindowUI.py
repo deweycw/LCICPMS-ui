@@ -30,11 +30,14 @@ class Calibration(QWidget):
 		self.n_area = []
 		self.standards = {'Blank':[], 'Std 1':[], 'Std 2':[], 'Std 3':[], 'Std 4':[], 'Std 5':[]}
 		self.metalOptions = ['55Mn','56Fe','59Co','60Ni','63Cu','66Zn','111Cd','115In', '208Pb']
+		self.calCurves = {}
 		self.setWindowTitle('LC-ICP-MS Calibration')
 		self.setFixedSize(700, 1000)
 		# Set the central widget
 		self.generalLayout = QVBoxLayout()
 		self.topLayout = QFormLayout()
+		#self.midLayout = QHBoxLayout()
+		self.bottomLayout = QHBoxLayout()
 		self._centralWidget = QWidget(self)
 		self._centralWidget.setLayout(self.generalLayout)
 
@@ -47,9 +50,9 @@ class Calibration(QWidget):
 		self._createDisplay()
 		self._createPlot()
 		self._createStandardsCheckBoxes()
-		self._createstandardsLayout()
+		
 		self._createStdConcEntry()
-
+		self._createstandardsLayout()
 
 	def _selectDirectory(self):
 		dialog = QFileDialog()
@@ -84,8 +87,8 @@ class Calibration(QWidget):
 		self.stdEntryLayout.addWidget(self.stdConcEntry)
 		self.stdEntryLayout.addWidget(self.ok_button)
 
-		
-		self.generalLayout.addLayout(self.stdEntryLayout)
+		self.bottomLayout.addLayout(self.stdEntryLayout)
+		#self.generalLayout.addLayout(self.bottomLayout)
 
 	def _createDisplay(self):
 		'''Create the display'''
@@ -108,32 +111,31 @@ class Calibration(QWidget):
 
 	def _createStandardsCheckBoxes(self):  
 		self.stdsRadioButtons = []
-		self.standardsLayout = QHBoxLayout()
-		for s in self.standards.keys():
+		rbuttonLayout = QGridLayout()
+		pos = [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2]] 
+		for s,p in zip(self.standards.keys(),pos):
 			rbutton = QRadioButton(s)
 			self.stdsRadioButtons.append(rbutton)
-			self.standardsLayout.addWidget(rbutton)
+			rbuttonLayout.addWidget(rbutton, p[0], p[1])
 		#self.checkBoxes.append(self.intbox)
 		#self.standardsLayout.addWidget(self.intbox)
    #    # optionwidget.stateChanged.connect(self.clickBox)
-   #     self.generalLayout.addLayout(self.standardsLayout)
+		self.bottomLayout.addLayout(rbuttonLayout)
 	
 	def _createstandardsLayout(self):
 		"""Create the integrate buttons."""
-
-
-
 		self.integrateButtons = {}
-
+		buttonsLayout = QGridLayout()
 		# Button text | position on the QGridLayout
-		intbuttons = {'Integrate': (0,0), 'Assign Conc.': (0,1)}
+		intbuttons = {'Integrate': (0,0), 'Calculate Curve': (1,0)}
 		# Create the buttons and add them to the grid layout
 		for btnText, pos in intbuttons.items():
 			self.integrateButtons[btnText] = QPushButton(btnText)
-			self.integrateButtons[btnText].setFixedSize(80, 40)
-			self.standardsLayout.addWidget(self.integrateButtons[btnText], pos[1])
+			self.integrateButtons[btnText].setFixedSize(120, 40)
+			buttonsLayout.addWidget(self.integrateButtons[btnText], pos[0], pos[1])
 		# Add buttonsLayout to the general layout
-		self.generalLayout.addLayout(self.standardsLayout)
+		self.bottomLayout.addLayout(buttonsLayout)
+		self.generalLayout.addLayout(self.bottomLayout)
 
 	def _createListbox(self):
 		'''Create listbox'''
