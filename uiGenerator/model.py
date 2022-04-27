@@ -65,7 +65,6 @@ class LICPMSfunctions:
 			maxval = maxval['Time ' + metal]
 			#print( i_tmax, maxval/60, range_max)
 
-			icpms_dataToSum = self._data[metal].iloc[i_tmin:i_tmax]
 			#print(icpms_dataToSum)
 
 			me_col_ind = self._data.columns.get_loc(metal)
@@ -75,18 +74,21 @@ class LICPMSfunctions:
 				icp_2 = self._data.iloc[i+1,me_col_ind]
 				min_height = min([icp_1,icp_2])
 				max_height = max([icp_1,icp_2])
-				timeDelta = self._data.iloc[i+1,me_col_ind - 1] - self._data.iloc[i,me_col_ind - 1] # seconds; time is always to left of metal signal
+				timeDelta = (self._data.iloc[i+1,me_col_ind - 1] - self._data.iloc[i,me_col_ind - 1])/60 # minutes; time is always to left of metal signal
 				#print(i, i+1, timeDelta)
 				#print(min_height, max_height)
 				rect_area = timeDelta * min_height
 				top_area = timeDelta * (max_height - min_height) * 0.5
 				An = rect_area + top_area
 				summed_area = summed_area + An  # area =  cps * sec = counts
-			print(metal + ': ' + str(summed_area))
 
+			cal_curve = self._view.calCurves[metal]	
+			slope = cal_curve['m']
+			intercept = cal_curve['b']
+			conc_ppb = slope * summed_area + intercept
+			conc_uM = conc_ppb / self._view.masses[metal]
+			print(metal + ': %.2f' % conc_uM + ' uM')
 
-
-	
 	def plotLowRange(self,xmin,n):
 		'''plots integration range'''
 		col = self.intColors[n]

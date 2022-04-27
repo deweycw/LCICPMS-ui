@@ -34,11 +34,14 @@ class PyLCICPMSUi(QMainWindow):
         self.setCentralWidget(self._centralWidget)
         self._centralWidget.setLayout(self.generalLayout)
 
+        self.calCurves = {}
+        self.masses = {'55Mn': 55, '56Fe': 56, '59Co': 59, '60Ni': 60, '63Cu': 63, '66Zn': 66, '111Cd': 111, '127I': 127, '208Pb': 208}
+
         self.homeDir = '/Users/christiandewey/presentations/DOE-PI-22/day6/day6/'
         self.activeMetals = []
         self.metalOptions = ['55Mn','56Fe','59Co','60Ni','63Cu','66Zn','111Cd','115In', '208Pb']
         # Create the display and the buttons
-        #self._selectDirectory()
+        self._selectDirectory()
         self._createDirEntry()
         self._createButtons()
         self._createListbox()
@@ -109,7 +112,7 @@ class PyLCICPMSUi(QMainWindow):
         self.integrateButtons = {}
 
         # Button text | position on the QGridLayout
-        intbuttons = {'Integrate': (0,0), 'Calibrate': (0,1)}
+        intbuttons = {'Integrate': (0,0),'Load Cal.': (0,1),'Calibrate': (0,2)}
         # Create the buttons and add them to the grid layout
         for btnText, pos in intbuttons.items():
             self.integrateButtons[btnText] = QPushButton(btnText)

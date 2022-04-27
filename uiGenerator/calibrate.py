@@ -150,7 +150,7 @@ class CalibrateFunctions:
 			calCurve_dict[m] = [regr,(mean_squared_error(X, y),r2_score(X, y))]
 			saveDict[m] = {'m': regr.coef_[0], 'b': regr.intercept_, 'r2': r2, 'mse': mse}
 			
-		self._calview.calCurves = calCurve_dict
+		self._mainview.calCurves = saveDict
 
 		savefile = self._mainview.homeDir + 'calibration_curve.calib'
 		with open(savefile, 'w') as file:

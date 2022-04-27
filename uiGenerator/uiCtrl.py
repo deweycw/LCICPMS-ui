@@ -7,7 +7,7 @@ from functools import partial
 import os
 import pandas as pd
 from functools import partial
-
+import json
 
 __version__ = '0.1'
 __author__ = 'Christian Dewey'
@@ -54,7 +54,13 @@ class PyLCICPMSCtrl:
 		#self._data = None
 		self._view.buttons['Plot'].setEnabled(False)
 		self._view.integrateButtons['Integrate'].setEnabled(False)
+		self._view.integrateButtons['Integrate'].setStyleSheet("background-color: light gray")
+
+		self._intRange = []
 		self._view.plotSpace.clear()
+		self._n = 0
+		print('data cleared')
+
 		self._n = 0
 		print('data cleared')
 
@@ -130,6 +136,18 @@ class PyLCICPMSCtrl:
 	def _showCalWindow(self):
 		''' opens calibration window '''
 		self.dialog.show()
+	
+	def _loadCalFile(self):
+		''' loads cal file and saves to self._mainview.calCurves '''
+		for root, dirs, files in os.walk(self._view.homeDir):
+			for ff in files:
+				if '.calib' in ff:
+					calfile = os.path.join(root,ff)
+
+		with open(calfile) as file:
+			self._view.calCurves = json.load(file)
+
+		print('\tLoaded as calibration file: ' + calfile)
 
 	def _connectSignals(self):
 		"""Connect signals and slots."""
@@ -153,8 +171,10 @@ class PyLCICPMSCtrl:
 		self._view.buttons['Plot'].clicked.connect(self._makePlot)
 		self._view.buttons['Reset'].clicked.connect(self._clearForm)	
 		self._view.integrateButtons['Calibrate'].clicked.connect(self._showCalWindow)
+		self._view.integrateButtons['Load Cal.'].clicked.connect(self._loadCalFile)
 		self.dialog = self._calWindow
 		self._view.integrateButtons['Integrate'].clicked.connect(self._Integrate)
+		
 
 
 

@@ -66,6 +66,11 @@ class CalCtrlFunctions:
 		#self._data = None
 		self._calview.buttons['Plot'].setEnabled(False)
 		self._calview.integrateButtons['Integrate'].setEnabled(False)
+		self._calview.integrateButtons['Integrate'].setStyleSheet("background-color: light gray")
+		self._calview.ok_button.setStyleSheet("background-color: light gray")
+		self._calview.stdConcEntry.clear()
+		self._mainview.activeMetals.clear()
+		self._mainview.calCurves = {}
 		self._calview.plotSpace.clear()
 		self.currentStd = None
 		for k in self._calview.standards.keys(): self._calview.standards[k] = []
@@ -115,11 +120,10 @@ class CalCtrlFunctions:
 			
 	def _Integrate(self):
 		''' call integration function'''
-		#print(self._xMin, self._xMax)
-		#data_to_integrate = self._data
 		self._model.integrate(self._intRange)
 		self._intRange = []
 		self._calview.integrateButtons['Integrate'].setStyleSheet("background-color: light gray")
+		self._calview.ok_button.setStyleSheet("background-color: red")
 		self._calview.standards[self.currentStd].append(self._calview.n_area )
 		self._calview.ok_button.setEnabled(True)
 		print(self._calview.standards)
@@ -131,6 +135,7 @@ class CalCtrlFunctions:
 		stdConc = self._calview.stdConcEntry.text()
 		self._calview.standards[self.currentStd].append(float(stdConc))
 		self._calview.stdConcEntry.clear()
+		self._calview.ok_button.setStyleSheet("background-color: light gray")
 		print(self._calview.standards)
 		self._calview.ok_button.setEnabled(False)
 

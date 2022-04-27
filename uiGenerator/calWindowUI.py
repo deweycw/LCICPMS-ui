@@ -30,7 +30,7 @@ class Calibration(QWidget):
 		self.n_area = []
 		self.standards = {'Blank':[], 'Std 1':[], 'Std 2':[], 'Std 3':[], 'Std 4':[], 'Std 5':[]}
 		self.metalOptions = ['55Mn','56Fe','59Co','60Ni','63Cu','66Zn','111Cd','115In', '208Pb']
-		self.calCurves = {}
+		#self.calCurves = self._view.calCurves
 		self.setWindowTitle('LC-ICP-MS Calibration')
 		self.setFixedSize(700, 1000)
 		# Set the central widget
