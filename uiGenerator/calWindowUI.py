@@ -26,7 +26,7 @@ class Calibration(QWidget):
 		super().__init__()
 		# Set some main window's properties
 		self._view = view
-		
+		self.calibrationDir = ''
 		self.n_area = []
 		self.standards = {'Blank':[], 'Std 1':[], 'Std 2':[], 'Std 3':[], 'Std 4':[], 'Std 5':[]}
 		self.metalOptions = ['55Mn','56Fe','59Co','60Ni','63Cu','66Zn','111Cd', '208Pb']
@@ -58,7 +58,7 @@ class Calibration(QWidget):
 		
 		self._createStdConcEntry()
 		self._createstandardsLayout()
-
+		#self._showActiveCalibFile()
 		#self._createResizeHandle()
 
 	def _createResizeHandle(self):
@@ -68,13 +68,13 @@ class Calibration(QWidget):
 	   # self.__corner = Qt.BottomRightCorner
 
 		self.resize(self.sizeHint())
-
+	'''
 	def _selectDirectory(self):
 		dialog = QFileDialog()
 		dialog.setWindowTitle("Select LC-ICPMS Directory")
 		dialog.setViewMode(QFileDialog.Detail)
 		self._view.homeDir = str(dialog.getExistingDirectory(self,"Select Directory:")) + '/'
-   
+    '''
 	def _createPlot(self):
 		self.plotSpace = pg.PlotWidget()
 		self.plotSpace.setBackground('w')
@@ -92,18 +92,20 @@ class Calibration(QWidget):
 		self.stdConcEntry.setAlignment(Qt.AlignRight)
 		#self.standardsLayout.addRow("Enter standard concentration:", self.stdConcEntry)
 		self.stdlabel = QLabel()
-		stdlabel = 'Standard concentration:'
+		stdlabel = 'Standard conc. (ppb):'
 		self.stdlabel.setText(stdlabel)
 
-		self.ok_button = QPushButton('Enter')
-		self.ok_button.setFixedSize(80, 40)
+		#self.ok_button = QPushButton('Enter')
+		#self.ok_button.setFixedSize(80, 40)
 		
 		self.stdEntryLayout.addWidget(self.stdlabel)
 		self.stdEntryLayout.addWidget(self.stdConcEntry)
-		self.stdEntryLayout.addWidget(self.ok_button)
+		#self.stdEntryLayout.addWidget(self.ok_button)
 
 		self.bottomLayout.addLayout(self.stdEntryLayout)
 		#self.generalLayout.addLayout(self.bottomLayout)
+
+
 
 	def _createDisplay(self):
 		'''Create the display'''
@@ -142,7 +144,7 @@ class Calibration(QWidget):
 		self.integrateButtons = {}
 		buttonsLayout = QGridLayout()
 		# Button text | position on the QGridLayout
-		intbuttons = {'Integrate': (0,0), 'Calculate Curve': (1,0)}
+		intbuttons = {'Enter': (0,0), 'Calculate Curve': (1,0)}
 		# Create the buttons and add them to the grid layout
 		for btnText, pos in intbuttons.items():
 			self.integrateButtons[btnText] = QPushButton(btnText)
@@ -153,11 +155,21 @@ class Calibration(QWidget):
 		self.generalLayout.addLayout(self.bottomLayout)
 
 	def _createListbox(self):
-		'''Create listbox'''
+	
+		listBoxLayout = QGridLayout()
+		self.listwidget = QListWidget()
+		listBoxLayout.addWidget(self.listwidget)
+		self.listwidget.setMaximumHeight(250)
+		self.generalLayout.addLayout(listBoxLayout)
+	'''
+	def _createListbox(self):
+		
 		listBoxLayout = QGridLayout()
 		self.listwidget = QListWidget()
 
-		test_dir = self._view.homeDir #'/Users/christiandewey/presentations/DOE-PI-22/day6/day6/'
+		print(self._view.homeDir)
+		test_dir = self._view.homeDir 
+		#if test_dir != '':
 		i = 0
 		for name in os.listdir(test_dir):
 			if '.csv' in name: 
@@ -167,7 +179,7 @@ class Calibration(QWidget):
 		self.listwidget.clicked.connect(self.clicked)
 		listBoxLayout.addWidget(self.listwidget)
 		self.generalLayout.addLayout(listBoxLayout)
-
+	'''
 	def _createButtons(self):
 		"""Create the buttons."""
 		self.buttons = {}
@@ -175,8 +187,8 @@ class Calibration(QWidget):
 		# Button text | position on the QGridLayout
 		buttons = {'Load': (0, 0),
 				   #'Plot': (0, 1),
-				 #  'Integrate': (0,2),
-				   'Reset': (0, 1)
+				   'Directory': (0,1),
+				   'Reset': (0, 2)
 				  }
 		# Create the buttons and add them to the grid layout
 		for btnText, pos in buttons.items():

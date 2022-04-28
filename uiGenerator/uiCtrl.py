@@ -8,7 +8,9 @@ import os
 import pandas as pd
 from functools import partial
 import json
-
+from uiGenerator.calWindowUI import *
+from uiGenerator.calCntrl import *
+from uiGenerator.calibrate import *
 __version__ = '0.1'
 __author__ = 'Christian Dewey'
 
@@ -43,6 +45,31 @@ class PyLCICPMSCtrl:
 		# Connect signals and slots
 		self._connectSignals()
 
+	def _selectDirectory(self):
+		print('here')
+		dialog = QFileDialog()
+		dialog.setWindowTitle("Select LC-ICPMS Directory")
+		dialog.setViewMode(QFileDialog.Detail)
+		self._view.homeDir = str(dialog.getExistingDirectory(self._view,"Select Directory:")) + '/'
+		self._createListbox()
+		self._view.integrateButtons['Calibrate'].setEnabled(True)
+		self._view.integrateButtons['Load Cal.'].setEnabled(True)
+		self._view.buttons['Import'].setEnabled(True)
+
+	def _createListbox(self):
+	
+		test_dir = self._view.homeDir #'/Users/christiandewey/presentations/DOE-PI-22/day6/day6/'
+		i = 0
+		for name in sorted(os.listdir(test_dir)):
+			if '.csv' in name: 
+				self._view.listwidget.insertItem(i, name)
+				i = i + 1
+
+		self._view.listwidget.clicked.connect(self._view.clicked)
+		#listBoxLayout.addWidget(self.listwidget)
+		#self.listwidget.setMaximumHeight(250)
+		#self.generalLayout.addLayout(listBoxLayout)
+
 	def _buildExpression(self, sub_exp):
 		"""Build expression."""
 		expression = self._view.displayText() + sub_exp
@@ -67,13 +94,16 @@ class PyLCICPMSCtrl:
 	def _importAndActivatePlotting(self):
 		'''activates plotting function after data imported'''
 		#self._view.activeMetals.clear()
-		for cbox in self._view.checkBoxes.values():
-			cbox.setChecked(True)
+		if self._view.activeMetals == []: 
+			for cbox in self._view.checkBoxes.values():
+				cbox.setChecked(True)
 		self._model.importData()
 		self._view.buttons['Plot'].setEnabled(True)
 		self._view.setDisplayText(self._view.listwidget.currentItem().text())
 		#self._view.activeMetals.append('115In')
 		self._makePlot()
+		self._view.buttons['Reset'].setEnabled(True)
+		self._view.listwidget.setFocus()
 
 	def _mouseover(self, pos):
 		''' selects range for integration'''
@@ -126,8 +156,13 @@ class PyLCICPMSCtrl:
 	
 	def _showCalWindow(self):
 		''' opens calibration window '''
-		self.dialog.show()
-	
+		#self.dialog = Calibration(view = self._view)
+		
+		
+		self.calWindow = Calibration(view = self._view)
+		calmodel = CalibrateFunctions(calview= self.calWindow, mainview = self._view)
+		CalCtrlFunctions(model=calmodel, mainview = self._view,view= self.calWindow)
+		self.calWindow.show()
 	def _loadCalFile(self):
 		''' loads cal file and saves to self._mainview.calCurves '''
 		self._view.integrateButtons['Load Cal.'].setStyleSheet("background-color: light gray")
@@ -139,7 +174,9 @@ class PyLCICPMSCtrl:
 		with open(calfile) as file:
 			self._view.calCurves = json.load(file)
 
-		print('\tLoaded as calibration file: ' + calfile)
+		print('Loaded as calibration file: ' + calfile)
+
+		self._view.calib_label.setText('Calibration file loaded')
 
 	def _connectSignals(self):
 		"""Connect signals and slots."""
@@ -149,22 +186,33 @@ class PyLCICPMSCtrl:
 					text = ''
 				else:
 					text = self._view.listwidget.currentItem().text()
-
+		
 				btn.clicked.connect(partial(self._buildExpression, text))
+
+		self._view.buttons['Import'].setEnabled(False)
+		self._view.buttons['Plot'].setEnabled(False)
+		self._view.buttons['Reset'].setEnabled(False)
+		self._view.integrateButtons['Calibrate'].setEnabled(False)
+		self._view.integrateButtons['Load Cal.'].setEnabled(False)
+		self._view.integrateButtons['Integrate'].setEnabled(False)
+		
+		self._view.listwidget.setCurrentItem(None)
+		self._view.buttons['Directory'].clicked.connect(self._selectDirectory)
+		
+		self._view.buttons['Import'].clicked.connect(self._importAndActivatePlotting)
+		self._view.listwidget.currentItemChanged.connect(self._importAndActivatePlotting)
 
 		for cbox in self._view.checkBoxes.values():
 			cbox.stateChanged.connect(partial( self._view.clickBox, cbox) )
 
 		self._view.intbox.stateChanged.connect(self._selectIntRange)
 
-		self._view.buttons['Import'].clicked.connect(self._importAndActivatePlotting)
-		self._view.buttons['Plot'].setEnabled(False)
-		self._view.integrateButtons['Integrate'].setEnabled(False)
 		self._view.buttons['Plot'].clicked.connect(self._makePlot)
 		self._view.buttons['Reset'].clicked.connect(self._clearForm)	
+
 		self._view.integrateButtons['Calibrate'].clicked.connect(self._showCalWindow)
 		self._view.integrateButtons['Load Cal.'].clicked.connect(self._loadCalFile)
-		self.dialog = self._calWindow
+
 		self._view.integrateButtons['Integrate'].clicked.connect(self._Integrate)
 		
 

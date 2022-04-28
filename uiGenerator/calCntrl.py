@@ -29,20 +29,45 @@ class CalCtrlFunctions:
 		self._calview = view
 		self._mainview = mainview
 
+		self.calibrationDir = self._calview.calibrationDir
 		self._intRange = []		
 		#self._intPointX = 0
 		#self._intPointY = 0 
 		#self._intX = []
-		#self._intY = []
+		#self._intY = []s
 		self.n_clicks = 0
 		self._n = 0
 		self._xMin = 0
 		self._xMax = 0
 		self.button_is_checked = False
+		self.calibrationDir = ''
 		
 		# Connect signals and slots
 		self._connectSignals()
 
+	def _selectDirectory(self):
+		print('here2')
+		dialog = QFileDialog()
+		dialog.setWindowTitle("Select Calibration Directory")
+		dialog.setViewMode(QFileDialog.Detail)
+		self._calview.calibrationDir = str(dialog.getExistingDirectory(self._calview,"Select Directory:")) + '/'
+		print(self._calview.calibrationDir)
+		self._createListbox()
+	
+	def _createListbox(self):
+	
+		test_dir = self._calview.calibrationDir #'/Users/christiandewey/presentations/DOE-PI-22/day6/day6/'
+		i = 0
+		for name in sorted(os.listdir(test_dir)):
+			if '.csv' in name: 
+				self._calview.listwidget.insertItem(i, name)
+				i = i + 1
+
+		self._calview.listwidget.clicked.connect(self._calview.clicked)
+		#listBoxLayout.addWidget(self.listwidget)
+		#self.listwidget.setMaximumHeight(250)
+		#self.generalLayout.addLayout(listBoxLayout)
+	
 	def _buildExpression(self, sub_exp):
 		"""Build expression."""
 		expression = self._calview.displayText() + sub_exp
@@ -68,9 +93,9 @@ class CalCtrlFunctions:
 		#self._calview.clearChecks()
 
 		#self._calview.buttons['Plot'].setEnabled(False)
-		self._calview.integrateButtons['Integrate'].setEnabled(False)
-		self._calview.integrateButtons['Integrate'].setStyleSheet("background-color: light gray")
-		self._calview.ok_button.setStyleSheet("background-color: light gray")
+		self._calview.integrateButtons['Enter'].setEnabled(False)
+		self._calview.integrateButtons['Enter'].setStyleSheet("background-color: light gray")
+		#self._calview.ok_button.setStyleSheet("background-color: light gray")
 		self._calview.stdConcEntry.clear()
 		self._mainview.activeMetals.clear()
 		self._mainview.calCurves = {}
@@ -112,8 +137,8 @@ class CalCtrlFunctions:
 			self._intRange.append(self._act_pos.x()) #.x() / 60 # in minutes
 			print('\txmax selection: '+str(self._act_pos.x()))
 			self._model.plotHighRange(self._act_pos.x(),self._n)
-			self._calview.integrateButtons['Integrate'].setEnabled(True)
-			self._calview.integrateButtons['Integrate'].setStyleSheet("background-color: red")
+			self._calview.integrateButtons['Enter'].setEnabled(True)
+			self._calview.integrateButtons['Enter'].setStyleSheet("background-color: red")
 			self._n = self._n + 1
 
 		self.n_clicks = 1
@@ -127,7 +152,7 @@ class CalCtrlFunctions:
 		if self._calview.stdConcEntry.text() != '':
 			self._model.integrate(self._intRange)
 			self._intRange = []
-			self._calview.integrateButtons['Integrate'].setStyleSheet("background-color: light gray")
+			self._calview.integrateButtons['Enter'].setStyleSheet("background-color: light gray")
 			self._calview.stdConcEntry.setStyleSheet("background-color: light gray")
 			#self._calview.ok_button.setStyleSheet("background-color: red")
 			self._calview.standards[self.currentStd].append(self._calview.n_area )
@@ -135,6 +160,7 @@ class CalCtrlFunctions:
 			print(self._calview.standards)
 
 			self.getStdConc()
+			self._calview.plotSpace.clear()
 		else:
 			self._calview.stdConcEntry.setStyleSheet("background-color: yellow")
 
@@ -147,7 +173,7 @@ class CalCtrlFunctions:
 		self._calview.stdConcEntry.clear()
 	#	self._calview.ok_button.setStyleSheet("background-color: light gray")
 		print(self._calview.standards)
-		self._calview.ok_button.setEnabled(False)
+		#self._calview.ok_button.setEnabled(False)
 		print('here',self.currentStd)
 		self._calview.stdsRadioButtons[self.currentStd].setCheckable(False)
 		self._calview.stdsRadioButtons[self.currentStd].setEnabled(False)
@@ -169,22 +195,23 @@ class CalCtrlFunctions:
 				else:
 					text = self._calview.listwidget.currentItem().text()
 
-				#btn.clicked.connect(partial(self._buildExpression, text))
+				btn.clicked.connect(partial(self._buildExpression, text))
 		'''uncomment to include metal checkboxes in calibration window'''
 		#for cbox in self._calview.checkBoxes:
 			#cbox.stateChanged.connect(partial( self._calview.clickBox, cbox) )
 
+		self._calview.buttons['Directory'].clicked.connect(self._selectDirectory)
 		for rbutton in self._calview.stdsRadioButtons.values():
 			rbutton.toggled.connect(partial(self._selectCalPeak, rbutton) )
 
 		self._calview.buttons['Load'].clicked.connect(self._importAndActivatePlotting)
 	#	self._calview.buttons['Plot'].setEnabled(False)
-		self._calview.ok_button.setEnabled(False)
-		self._calview.integrateButtons['Integrate'].setEnabled(False)
+		#self._calview.ok_button.setEnabled(False)
+		self._calview.integrateButtons['Enter'].setEnabled(False)
 		#self._calview.buttons['Plot'].clicked.connect(self._makePlot)
 		self._calview.buttons['Reset'].clicked.connect(self._clearForm)	
-		self._calview.integrateButtons['Integrate'].clicked.connect(self._Integrate)
-		self._calview.ok_button.clicked.connect(self.getStdConc)
+		self._calview.integrateButtons['Enter'].clicked.connect(self._Integrate)
+		#self._calview.ok_button.clicked.connect(self.getStdConc)
 		self._calview.integrateButtons['Calculate Curve'].clicked.connect(self._calcCurve)
 
 

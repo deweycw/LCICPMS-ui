@@ -36,7 +36,7 @@ class CalibrateFunctions:
 		
 	def importData(self):
 		'''imports cal .csv file'''
-		fdir = self._mainview.homeDir + self._calview.listwidget.currentItem().text()
+		fdir = self._calview.calibrationDir + self._calview.listwidget.currentItem().text()
 		self._data = pd.read_csv(fdir,sep=';',skiprows = 0, header = 1)
 
 	def plotActiveMetals(self):
@@ -150,7 +150,7 @@ class CalibrateFunctions:
 		
 			host.set_title(m)
 
-			fname = self._mainview.homeDir + m + '_calibration.png'
+			fname = self._calnview.calibrationDir + m + '_calibration.png'
 			plt.savefig(fname)
 			plt.show()
 		
@@ -160,5 +160,9 @@ class CalibrateFunctions:
 		self._mainview.calCurves = saveDict
 
 		savefile = self._mainview.homeDir + 'calibration_curve.calib'
+		with open(savefile, 'w') as file:
+			file.write(json.dumps(saveDict))
+
+		savefile = self._calview.calibrationDir + 'calibration_curve.calib'
 		with open(savefile, 'w') as file:
 			file.write(json.dumps(saveDict))
