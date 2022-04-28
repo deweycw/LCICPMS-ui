@@ -26,7 +26,7 @@ class PyLCICPMSUi(QMainWindow):
         super().__init__()
         # Set some main window's properties
         self.setWindowTitle('LC-ICP-MS Data Viewer')
-        self.setFixedSize(600, 800)
+        self.setGeometry(100, 60,600, 600)
         # Set the central widget
         self.generalLayout = QVBoxLayout()
         self.topLayout = QFormLayout()
@@ -37,7 +37,7 @@ class PyLCICPMSUi(QMainWindow):
         self.calCurves = {}
         self.masses = {'55Mn': 55, '56Fe': 56, '59Co': 59, '60Ni': 60, '63Cu': 63, '66Zn': 66, '111Cd': 111, '127I': 127, '208Pb': 208}
 
-        self.homeDir = '/Users/christiandewey/presentations/DOE-PI-22/day6/day6/'
+        self.homeDir =''# '/Users/christiandewey/presentations/DOE-PI-22/day6/day6/'
         self.activeMetals = []
         self.metalOptions = ['55Mn','56Fe','59Co','60Ni','63Cu','66Zn','111Cd','115In', '208Pb']
         # Create the display and the buttons
@@ -50,7 +50,17 @@ class PyLCICPMSUi(QMainWindow):
         self._createPlot()
         self._createIntegrateCheckBoxes()
         self._createIntegrateLayout()
+        self._createResizeHandle()
 
+    def _createResizeHandle(self):
+        handle = QSizeGrip(self)
+        #self.generalLayout.addWidget(handle)
+        self.generalLayout.addWidget(handle, 0, Qt.AlignBottom | Qt.AlignRight)
+       # self.__corner = Qt.BottomRightCorner
+
+        self.resize(self.sizeHint())
+
+       # self.__updatePos()
 
     def _selectDirectory(self):
         dialog = QFileDialog()
@@ -85,11 +95,11 @@ class PyLCICPMSUi(QMainWindow):
 
     def _createCheckBoxes(self):
         # Add some checkboxes to the layout  
-        self.checkBoxes = []      
+        self.checkBoxes = {}      
         optionsLayout = QHBoxLayout()
         for m in self.metalOptions:
             cbox = QCheckBox(m)
-            self.checkBoxes.append(cbox)
+            self.checkBoxes[m] = cbox
             optionsLayout.addWidget(cbox)
        # optionwidget.stateChanged.connect(self.clickBox)
         self.generalLayout.addLayout(optionsLayout)
@@ -106,9 +116,6 @@ class PyLCICPMSUi(QMainWindow):
     
     def _createIntegrateLayout(self):
         """Create the integrate buttons."""
-
-
-
         self.integrateButtons = {}
 
         # Button text | position on the QGridLayout
@@ -171,21 +178,20 @@ class PyLCICPMSUi(QMainWindow):
 
     def clearChecks(self):
         """Clear the display."""
-        for cbox in self.checkBoxes:
+        for cbox in self.checkBoxes.values():
             cbox.setCheckState(Qt.Unchecked)
 
     def clickBox(self, cbox, state):
         if state == Qt.Checked:
             print('checked: ' + cbox.text())
-            self.activeMetals.append(cbox.text())
-           # print(self.activeMetals)
-            return self.activeMetals
+            if cbox.text() not in self.activeMetals:
+                self.activeMetals.append(cbox.text())
+            # print(self.activeMetals)
+                #return self.activeMetals
         elif state == Qt.Unchecked:
             print('Unchecked: ' + cbox.text())
             self.activeMetals.remove(cbox.text())
             #print(self.activeMetals)
-            return self.activeMetals
         else:
             print('Unchecked')
-            return self.activeMetals
 

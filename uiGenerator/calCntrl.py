@@ -51,20 +51,23 @@ class CalCtrlFunctions:
 	def _importAndActivatePlotting(self):
 		'''activates plotting function after data imported'''
 		self._model.importData()
-		self._calview.buttons['Plot'].setEnabled(True)
+		#self._calview.buttons['Plot'].setEnabled(True)
 		self._calview.setDisplayText(self._calview.listwidget.currentItem().text())
 
 	def _selectCalPeak(self,rbutton):
 		'''select integration range'''
+		if rbutton.isChecked() == True:
+			self.currentStd = rbutton.text()
+			self._calview.proxy = pg.SignalProxy(self._calview.chroma.scene().sigMouseClicked, rateLimit=60, slot=self._onClick)
+		else:
+			self._view.proxy = None
 		
-		self.currentStd = rbutton.text()
-		self._calview.proxy = pg.SignalProxy(self._calview.chroma.scene().sigMouseClicked, rateLimit=60, slot=self._onClick)
 
 	def _clearForm(self):
 		''' clears check boxes and nulls data '''
-		self._calview.clearChecks()
-		#self._data = None
-		self._calview.buttons['Plot'].setEnabled(False)
+		#self._calview.clearChecks()
+
+		#self._calview.buttons['Plot'].setEnabled(False)
 		self._calview.integrateButtons['Integrate'].setEnabled(False)
 		self._calview.integrateButtons['Integrate'].setStyleSheet("background-color: light gray")
 		self._calview.ok_button.setStyleSheet("background-color: light gray")
@@ -75,28 +78,27 @@ class CalCtrlFunctions:
 		self.currentStd = None
 		for k in self._calview.standards.keys(): self._calview.standards[k] = []
 		self._n = 0
+		for rbutton in self._calview.stdsRadioButtons.values():
+			rbutton.setCheckable(True)
+			rbutton.setEnabled(True)
 		print('data cleared')
 
 	def _importAndActivatePlotting(self):
 		'''activates plotting function after data imported'''
 		self._model.importData()
-		#self._calview.plotSpace.clear()
-		self._calview.buttons['Plot'].setEnabled(True)
+	#	self._calview.buttons['Plot'].setEnabled(True)
 		self._calview.setDisplayText(self._calview.listwidget.currentItem().text())
+		self._model.plotActiveMetals()
 
 	def _mouseover(self, pos):
 		''' selects range for integration'''
 		act_pos = self._calview.chroma.mapFromScene(pos)
 		self._intPointX = act_pos.x()
 		self._intPointY = act_pos.y()
-		#print('(x,y) (' + str(act_pos.x()) + ',' + str(act_pos.y()/60) + ')')
 
 	def _onClick(self, event):
 		''' selects range for integration'''
 		self._act_pos = self._calview.chroma.mapFromScene(event[0].scenePos())
-		#print('\tonclick')
-		#print('\tact pos: ' + str(self._act_pos.x()))
-		#print('\tlen int range: ' + str(len(self._intRange)))
 		cc = len(self._intRange)
 		cc = cc + 1
 		
@@ -116,18 +118,26 @@ class CalCtrlFunctions:
 
 		self.n_clicks = 1
 
-
 			
 	def _Integrate(self):
 		''' call integration function'''
-		self._model.integrate(self._intRange)
-		self._intRange = []
-		self._calview.integrateButtons['Integrate'].setStyleSheet("background-color: light gray")
-		self._calview.ok_button.setStyleSheet("background-color: red")
-		self._calview.standards[self.currentStd].append(self._calview.n_area )
-		self._calview.ok_button.setEnabled(True)
-		print(self._calview.standards)
-		
+	#	for rbutton in self._calview.stdsRadioButtons.values():
+#			if rbutton.isChecked():
+		print(self._calview.stdConcEntry.text())
+		if self._calview.stdConcEntry.text() != '':
+			self._model.integrate(self._intRange)
+			self._intRange = []
+			self._calview.integrateButtons['Integrate'].setStyleSheet("background-color: light gray")
+			self._calview.stdConcEntry.setStyleSheet("background-color: light gray")
+			#self._calview.ok_button.setStyleSheet("background-color: red")
+			self._calview.standards[self.currentStd].append(self._calview.n_area )
+			#self._calview.ok_button.setEnabled(True)
+			print(self._calview.standards)
+
+			self.getStdConc()
+		else:
+			self._calview.stdConcEntry.setStyleSheet("background-color: yellow")
+
 		#self._calview.plotSpace.clear()
 
 	def getStdConc(self):
@@ -135,10 +145,12 @@ class CalCtrlFunctions:
 		stdConc = self._calview.stdConcEntry.text()
 		self._calview.standards[self.currentStd].append(float(stdConc))
 		self._calview.stdConcEntry.clear()
-		self._calview.ok_button.setStyleSheet("background-color: light gray")
+	#	self._calview.ok_button.setStyleSheet("background-color: light gray")
 		print(self._calview.standards)
 		self._calview.ok_button.setEnabled(False)
-
+		print('here',self.currentStd)
+		self._calview.stdsRadioButtons[self.currentStd].setCheckable(False)
+		self._calview.stdsRadioButtons[self.currentStd].setEnabled(False)
 
 	def _makePlot(self):
 		'''makes plot & activates integration'''
@@ -147,30 +159,29 @@ class CalCtrlFunctions:
 
 	def _calcCurve(self):
 		self._model.calcLinearRegression()
-		
 
 	def _connectSignals(self):
 		"""Connect signals and slots."""
 		for btnText, btn in self._calview.buttons.items():
-			if btnText  in {'Import'}:
+			if btnText  in {'Plot'}:
 				if self._calview.listwidget.currentItem() is None:
 					text = ''
 				else:
 					text = self._calview.listwidget.currentItem().text()
 
 				#btn.clicked.connect(partial(self._buildExpression, text))
+		'''uncomment to include metal checkboxes in calibration window'''
+		#for cbox in self._calview.checkBoxes:
+			#cbox.stateChanged.connect(partial( self._calview.clickBox, cbox) )
 
-		for cbox in self._calview.checkBoxes:
-			cbox.stateChanged.connect(partial( self._calview.clickBox, cbox) )
-
-		for rbutton in self._calview.stdsRadioButtons:
+		for rbutton in self._calview.stdsRadioButtons.values():
 			rbutton.toggled.connect(partial(self._selectCalPeak, rbutton) )
 
-		self._calview.buttons['Import'].clicked.connect(self._importAndActivatePlotting)
-		self._calview.buttons['Plot'].setEnabled(False)
+		self._calview.buttons['Load'].clicked.connect(self._importAndActivatePlotting)
+	#	self._calview.buttons['Plot'].setEnabled(False)
 		self._calview.ok_button.setEnabled(False)
 		self._calview.integrateButtons['Integrate'].setEnabled(False)
-		self._calview.buttons['Plot'].clicked.connect(self._makePlot)
+		#self._calview.buttons['Plot'].clicked.connect(self._makePlot)
 		self._calview.buttons['Reset'].clicked.connect(self._clearForm)	
 		self._calview.integrateButtons['Integrate'].clicked.connect(self._Integrate)
 		self._calview.ok_button.clicked.connect(self.getStdConc)

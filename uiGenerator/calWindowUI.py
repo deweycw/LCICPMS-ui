@@ -26,13 +26,16 @@ class Calibration(QWidget):
 		super().__init__()
 		# Set some main window's properties
 		self._view = view
-		self.activeMetals = []
+		
 		self.n_area = []
 		self.standards = {'Blank':[], 'Std 1':[], 'Std 2':[], 'Std 3':[], 'Std 4':[], 'Std 5':[]}
-		self.metalOptions = ['55Mn','56Fe','59Co','60Ni','63Cu','66Zn','111Cd','115In', '208Pb']
+		self.metalOptions = ['55Mn','56Fe','59Co','60Ni','63Cu','66Zn','111Cd', '208Pb']
+		self.activeMetals =  self.metalOptions
 		#self.calCurves = self._view.calCurves
+
+    # self.setLayout(mainLayout)
 		self.setWindowTitle('LC-ICP-MS Calibration')
-		self.setFixedSize(700, 1000)
+		self.setGeometry(100, 60, 700, 600)
 		# Set the central widget
 		self.generalLayout = QVBoxLayout()
 		self.topLayout = QFormLayout()
@@ -41,18 +44,30 @@ class Calibration(QWidget):
 		self._centralWidget = QWidget(self)
 		self._centralWidget.setLayout(self.generalLayout)
 
+		self.setLayout(self.generalLayout)
+
 		self.metalOptions = ['55Mn','56Fe','59Co','60Ni','63Cu','66Zn','111Cd','115In', '208Pb']
 		# Create the display and the buttons
 		#self._selectDirectory()
 		self._createButtons()
 		self._createListbox()
-		self._createCheckBoxes()
+		#self._createCheckBoxes()
 		self._createDisplay()
 		self._createPlot()
 		self._createStandardsCheckBoxes()
 		
 		self._createStdConcEntry()
 		self._createstandardsLayout()
+
+		#self._createResizeHandle()
+
+	def _createResizeHandle(self):
+		handle = QSizeGrip(self)
+		#self.generalLayout.addWidget(handle)
+		self.generalLayout.addWidget(handle, 0, Qt.AlignBottom | Qt.AlignRight)
+	   # self.__corner = Qt.BottomRightCorner
+
+		self.resize(self.sizeHint())
 
 	def _selectDirectory(self):
 		dialog = QFileDialog()
@@ -64,7 +79,7 @@ class Calibration(QWidget):
 		self.plotSpace = pg.PlotWidget()
 		self.plotSpace.setBackground('w')
 		styles = { 'font-size':'15px'}
-		self.plotSpace.setLabel('left', 'ICP-MS signal intensity (cps x 1000)', **styles)
+		self.plotSpace.setLabel('left', 'ICP-MS signal (cps x 1000)', **styles)
 		self.plotSpace.setLabel('bottom', "Retention time (min)", **styles)
 		self.chroma = self.plotSpace
 		self.generalLayout.addWidget(self.plotSpace)
@@ -110,18 +125,18 @@ class Calibration(QWidget):
 		self.generalLayout.addLayout(optionsLayout)
 
 	def _createStandardsCheckBoxes(self):  
-		self.stdsRadioButtons = []
+		self.stdsRadioButtons = {}
 		rbuttonLayout = QGridLayout()
 		pos = [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2]] 
 		for s,p in zip(self.standards.keys(),pos):
 			rbutton = QRadioButton(s)
-			self.stdsRadioButtons.append(rbutton)
+			self.stdsRadioButtons[s] = rbutton
 			rbuttonLayout.addWidget(rbutton, p[0], p[1])
 		#self.checkBoxes.append(self.intbox)
 		#self.standardsLayout.addWidget(self.intbox)
    #    # optionwidget.stateChanged.connect(self.clickBox)
 		self.bottomLayout.addLayout(rbuttonLayout)
-	
+
 	def _createstandardsLayout(self):
 		"""Create the integrate buttons."""
 		self.integrateButtons = {}
@@ -158,10 +173,10 @@ class Calibration(QWidget):
 		self.buttons = {}
 		buttonsLayout = QGridLayout()
 		# Button text | position on the QGridLayout
-		buttons = {'Import': (0, 0),
-				   'Plot': (0, 1),
+		buttons = {'Load': (0, 0),
+				   #'Plot': (0, 1),
 				 #  'Integrate': (0,2),
-				   'Reset': (0, 3)
+				   'Reset': (0, 1)
 				  }
 		# Create the buttons and add them to the grid layout
 		for btnText, pos in buttons.items():

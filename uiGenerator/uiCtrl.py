@@ -66,9 +66,14 @@ class PyLCICPMSCtrl:
 
 	def _importAndActivatePlotting(self):
 		'''activates plotting function after data imported'''
+		#self._view.activeMetals.clear()
+		for cbox in self._view.checkBoxes.values():
+			cbox.setChecked(True)
 		self._model.importData()
 		self._view.buttons['Plot'].setEnabled(True)
 		self._view.setDisplayText(self._view.listwidget.currentItem().text())
+		#self._view.activeMetals.append('115In')
+		self._makePlot()
 
 	def _mouseover(self, pos):
 		''' selects range for integration'''
@@ -108,9 +113,12 @@ class PyLCICPMSCtrl:
 			
 	def _Integrate(self):
 		''' call integration function'''
-		self._model.integrate(self._intRange)
-		self._intRange = []
-		self._view.integrateButtons['Integrate'].setStyleSheet("background-color: light gray")
+		if len(self._view.calCurves) > 0:
+			self._model.integrate(self._intRange)
+			self._intRange = []
+			self._view.integrateButtons['Integrate'].setStyleSheet("background-color: light gray")
+		else:
+			self._view.integrateButtons['Load Cal.'].setStyleSheet("background-color: yellow")
 
 	def _makePlot(self):
 		'''makes plot & activates integration'''
@@ -122,6 +130,7 @@ class PyLCICPMSCtrl:
 	
 	def _loadCalFile(self):
 		''' loads cal file and saves to self._mainview.calCurves '''
+		self._view.integrateButtons['Load Cal.'].setStyleSheet("background-color: light gray")
 		for root, dirs, files in os.walk(self._view.homeDir):
 			for ff in files:
 				if '.calib' in ff:
@@ -143,7 +152,7 @@ class PyLCICPMSCtrl:
 
 				btn.clicked.connect(partial(self._buildExpression, text))
 
-		for cbox in self._view.checkBoxes:
+		for cbox in self._view.checkBoxes.values():
 			cbox.stateChanged.connect(partial( self._view.clickBox, cbox) )
 
 		self._view.intbox.stateChanged.connect(self._selectIntRange)
