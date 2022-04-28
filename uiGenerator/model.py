@@ -32,11 +32,19 @@ class LICPMSfunctions:
 		"""Controller initializer."""
 		self._view = view
 		self.intColors = sns.color_palette(n_colors = 6, as_cmap = True)
+		self.minline = None
+		self.maxline = None
 		
 	def importData(self):
 		'''imports LCICPMS .csv file'''
 		self.fdir = self._view.homeDir + self._view.listwidget.currentItem().text()
 		self._data = pd.read_csv(self.fdir,sep=';',skiprows = 0, header = 1)
+
+	def importData_generic(self,fdir):
+		'''imports LCICPMS .csv file'''
+		data = pd.read_csv(fdir,sep=';',skiprows = 0, header = 1)
+
+		return data 
 
 	def plotActiveMetalsMP(self):
 		'''plots active metals for selected file'''
@@ -46,6 +54,10 @@ class LICPMSfunctions:
 	def plotActiveMetals(self):
 		'''plots active metals for selected file'''
 		self._view.chroma = plotChroma(self._view, self._view.metalOptions, self._data, self._view.activeMetals)._plotChroma()
+		if self.minline != None:
+			self._view.plotSpace.addItem(self.minline)
+		if self.maxline != None:
+			self._view.plotSpace.addItem(self.maxline)
 
 	def integrate(self, intRange):
 		'''integrates over specified x range'''
@@ -54,6 +66,15 @@ class LICPMSfunctions:
 		metalList = ['55Mn','56Fe','59Co','60Ni','63Cu','66Zn','111Cd', '208Pb']
 		metal_dict= {key: None for key in metalList}
 		metalConcs = {**time_holders,**metal_dict}
+		
+		print(self._view.normAvIndium)
+		if self._view.normAvIndium > 0:
+			print('here norm')
+			indium_col_ind = self._data.columns.get_loc('115In')
+			corr_factor = np.average(self._data.iloc[550:2500,indium_col_ind]) / self._view.normAvIndium  #550:2500 indices correspond to ~ 150 to 350 sec
+			print(corr_factor)
+		else:
+			corr_factor = 1
 
 		for metal in self._view.activeMetals:
 			if metal != '115In':
@@ -80,8 +101,8 @@ class LICPMSfunctions:
 				summed_area = 0
 				timeDelta = 0
 				for i in range(i_tmin, i_tmax):
-					icp_1 = self._data.iloc[i,me_col_ind] # cps
-					icp_2 = self._data.iloc[i+1,me_col_ind]
+					icp_1 = self._data.iloc[i,me_col_ind] / corr_factor# cps
+					icp_2 = self._data.iloc[i+1,me_col_ind] / corr_factor
 					min_height = min([icp_1,icp_2])
 					max_height = max([icp_1,icp_2])
 					#print('min height: %.2f' % min_height) 
@@ -108,9 +129,9 @@ class LICPMSfunctions:
 				conc_uM = conc_ppb / self._view.masses[metal]
 				
 				metalConcs[metal] = '%.2f' % conc_uM
-			print(metal + ' uM: %.4f' % conc_uM)
+				print(metal + ' uM: %.4f' % conc_uM)
 
-		filename =  self._view.homeDir + 'peaks_uM_' + self.fdir.split('/')[-1].split(',')[0] + '.csv'
+		filename =  self._view.homeDir + 'peaks_uM_' + self.fdir.split('/')[-1].split(',')[0]
 
 		if os.path.exists(filename):
 			with open(filename, 'a', newline = '') as csvfile:
@@ -120,6 +141,8 @@ class LICPMSfunctions:
 			csv_cols = ['start_time', 'stop_time'] + metalList
 			with open(filename, 'w', newline = '') as csvfile:
 				fwriter = csv.writer(csvfile, delimiter = ',', quotechar = '|')
+				if self._view.normAvIndium > 0:
+					fwriter.writerow(['115In correction applied',''])
 				fwriter.writerow(['concentrations in uM',''])
 				fwriter.writerow(['time in minutes',''])
 				fwriter.writerow(csv_cols)
@@ -133,10 +156,10 @@ class LICPMSfunctions:
 	def plotLowRange(self,xmin,n):
 		'''plots integration range'''
 		col = self.intColors[n]
-		minline = pg.InfiniteLine(xmin, pen = col, angle = 90)
-		self._view.plotSpace.addItem(minline) #InfiniteLine(minInt,angle = 90)
+		self.minline = pg.InfiniteLine(xmin, pen = col, angle = 90)
+		self._view.plotSpace.addItem(self.minline) #InfiniteLine(minInt,angle = 90)
 		
 	def plotHighRange(self,xmax,n):
 		col = self.intColors[n]
-		maxline = pg.InfiniteLine(xmax, pen=col,angle = 90)
-		self._view.plotSpace.addItem(maxline)
+		self.maxline = pg.InfiniteLine(xmax, pen=col,angle = 90)
+		self._view.plotSpace.addItem(self.maxline)

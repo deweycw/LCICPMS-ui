@@ -11,6 +11,7 @@ import json
 from uiGenerator.calWindowUI import *
 from uiGenerator.calCntrl import *
 from uiGenerator.calibrate import *
+
 __version__ = '0.1'
 __author__ = 'Christian Dewey'
 
@@ -54,7 +55,8 @@ class PyLCICPMSCtrl:
 		self._createListbox()
 		self._view.integrateButtons['Calibrate'].setEnabled(True)
 		self._view.integrateButtons['Load Cal.'].setEnabled(True)
-		self._view.buttons['Import'].setEnabled(True)
+		self._view.integrateButtons['115In Correction'].setEnabled(True)
+		self._view.buttons['Load'].setEnabled(True)
 
 	def _createListbox(self):
 	
@@ -86,10 +88,8 @@ class PyLCICPMSCtrl:
 		self._intRange = []
 		self._view.plotSpace.clear()
 		self._n = 0
-		print('data cleared')
-
-		self._n = 0
-		print('data cleared')
+		#self._view.integrateButtons['115In Correction'].setEnabled(True)
+		#self._view.normAvIndium = -999.99
 
 	def _importAndActivatePlotting(self):
 		'''activates plotting function after data imported'''
@@ -145,7 +145,7 @@ class PyLCICPMSCtrl:
 		''' call integration function'''
 		if len(self._view.calCurves) > 0:
 			self._model.integrate(self._intRange)
-			self._intRange = []
+			#self._intRange = []
 			self._view.integrateButtons['Integrate'].setStyleSheet("background-color: light gray")
 		else:
 			self._view.integrateButtons['Load Cal.'].setStyleSheet("background-color: yellow")
@@ -163,6 +163,7 @@ class PyLCICPMSCtrl:
 		calmodel = CalibrateFunctions(calview= self.calWindow, mainview = self._view)
 		CalCtrlFunctions(model=calmodel, mainview = self._view,view= self.calWindow)
 		self.calWindow.show()
+
 	def _loadCalFile(self):
 		''' loads cal file and saves to self._mainview.calCurves '''
 		self._view.integrateButtons['Load Cal.'].setStyleSheet("background-color: light gray")
@@ -174,14 +175,26 @@ class PyLCICPMSCtrl:
 		with open(calfile) as file:
 			self._view.calCurves = json.load(file)
 
-		print('Loaded as calibration file: ' + calfile)
+		print('Loaded calibration file: ' + calfile)
 
 		self._view.calib_label.setText('Calibration file loaded')
+
+	def _selectInNormFile(self):
+		''' opens window to select normalization file for 115In correction; saves average 115In signal from norm file'''
+		dialog = QFileDialog()
+		dialog.setWindowTitle("Select Normalization File")
+		dialog.setViewMode(QFileDialog.Detail)
+		filepath = dialog.getOpenFileName(self._view,"Openfile")[0]
+		normData = self._model.importData_generic(fdir = filepath )
+		self._view.normAvIndium = np.average(normData['115In'])
+		print(self._view.normAvIndium)
+		self._view.integrateButtons['115In Correction'].setEnabled(False)
+		
 
 	def _connectSignals(self):
 		"""Connect signals and slots."""
 		for btnText, btn in self._view.buttons.items():
-			if btnText  in {'Import'}:
+			if btnText  in {'Load'}:
 				if self._view.listwidget.currentItem() is None:
 					text = ''
 				else:
@@ -189,17 +202,18 @@ class PyLCICPMSCtrl:
 		
 				btn.clicked.connect(partial(self._buildExpression, text))
 
-		self._view.buttons['Import'].setEnabled(False)
+		self._view.buttons['Load'].setEnabled(False)
 		self._view.buttons['Plot'].setEnabled(False)
 		self._view.buttons['Reset'].setEnabled(False)
 		self._view.integrateButtons['Calibrate'].setEnabled(False)
 		self._view.integrateButtons['Load Cal.'].setEnabled(False)
 		self._view.integrateButtons['Integrate'].setEnabled(False)
+		self._view.integrateButtons['115In Correction'].setEnabled(False)
 		
 		self._view.listwidget.setCurrentItem(None)
 		self._view.buttons['Directory'].clicked.connect(self._selectDirectory)
 		
-		self._view.buttons['Import'].clicked.connect(self._importAndActivatePlotting)
+		self._view.buttons['Load'].clicked.connect(self._importAndActivatePlotting)
 		self._view.listwidget.currentItemChanged.connect(self._importAndActivatePlotting)
 
 		for cbox in self._view.checkBoxes.values():
@@ -212,8 +226,8 @@ class PyLCICPMSCtrl:
 
 		self._view.integrateButtons['Calibrate'].clicked.connect(self._showCalWindow)
 		self._view.integrateButtons['Load Cal.'].clicked.connect(self._loadCalFile)
-
 		self._view.integrateButtons['Integrate'].clicked.connect(self._Integrate)
+		self._view.integrateButtons['115In Correction'].clicked.connect(self._selectInNormFile)
 		
 
 

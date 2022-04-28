@@ -36,7 +36,9 @@ class PyLCICPMSUi(QMainWindow):
 
 		self.calCurves = {}
 		self.masses = {'55Mn': 55, '56Fe': 56, '59Co': 59, '60Ni': 60, '63Cu': 63, '66Zn': 66, '111Cd': 111, '127I': 127, '208Pb': 208}
-
+		
+		self.filepath = ''
+		self.normAvIndium = -999.99
 		self.homeDir = '' #/Users/christiandewey/'# '/Users/christiandewey/presentations/DOE-PI-22/day6/day6/'
 		self.activeMetals = []
 		self.metalOptions = ['55Mn','56Fe','59Co','60Ni','63Cu','66Zn','111Cd','115In', '208Pb']
@@ -73,7 +75,7 @@ class PyLCICPMSUi(QMainWindow):
 		self.plotSpace = pg.PlotWidget()
 		self.plotSpace.setBackground('w')
 		styles = { 'font-size':'15px'}
-		self.plotSpace.setLabel('left', 'ICP-MS signal intensity (cps x 1000)', **styles)
+		self.plotSpace.setLabel('left', 'ICP-MS signal (1000s cps)', **styles)
 		self.plotSpace.setLabel('bottom', "Retention time (min)", **styles)
 		self.chroma = self.plotSpace
 		self.generalLayout.addWidget(self.plotSpace)
@@ -118,14 +120,18 @@ class PyLCICPMSUi(QMainWindow):
 	def _createIntegrateLayout(self):
 		"""Create the integrate buttons."""
 		self.integrateButtons = {}
-
+		intButtonLayout = QGridLayout()
 		# Button text | position on the QGridLayout
-		intbuttons = {'Integrate': (0,0),'Load Cal.': (0,1),'Calibrate': (0,2)}
+		intbuttons = {'Integrate': (0,0),'Load Cal.': (0,1),'Calibrate': (0,2), '115In Correction': (0,3)}
 		# Create the buttons and add them to the grid layout
 		for btnText, pos in intbuttons.items():
-			self.integrateButtons[btnText] = QPushButton(btnText)
-			self.integrateButtons[btnText].setFixedSize(80, 40)
-			self.integrateLayout.addWidget(self.integrateButtons[btnText], pos[1])
+			self.integrateButtons[btnText] = QPushButton(btnText)			
+			self.integrateButtons[btnText].setFixedSize(122, 40)
+			intButtonLayout.addWidget(self.integrateButtons[btnText], pos[0],pos[1])
+
+			
+			
+		self.integrateLayout.addLayout(intButtonLayout)
 		# Add buttonsLayout to the general layout
 		self.generalLayout.addLayout(self.integrateLayout)
 
@@ -140,7 +146,7 @@ class PyLCICPMSUi(QMainWindow):
 	def _showActiveCalibFile(self):
 		self.calib_label = QLabel()
 		self.calib_label.setAlignment(Qt.AlignRight)
-		label_text = 'No loaded calibration file'
+		label_text = 'No calibration file'
 		self.calib_label.setText(label_text)
 		#label_text = 
 		self.generalLayout.addWidget(self.calib_label)	
@@ -167,7 +173,7 @@ class PyLCICPMSUi(QMainWindow):
 		self.buttons = {}
 		buttonsLayout = QGridLayout()
 		# Button text | position on the QGridLayout
-		buttons = {'Import': (0, 0),
+		buttons = {'Load': (0, 0),
 				   'Plot': (0, 1),
 				   'Reset': (0,2),
 				   'Directory': (0, 3)
