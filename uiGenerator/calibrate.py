@@ -101,14 +101,21 @@ class CalibrateFunctions:
 		calCurve_dict = {}
 		saveDict = {}
 		metals = self._calview.activeMetals
+		blank_value = 0
+		blank_dict = {}
 		for m in metals:
+
 			pas = []
 			concs = [] 
 			for std in self._calview.standards.keys():
 				std_list_n = self._calview.standards[std]
+				if (std == 'Blank') and (len(std_list_n) > 0):
+					blank_dict = std_list_n[0] 
+					blank_value = blank_dict[m]
+					print('blank PA for ' + m + ' = %.2f' % blank_value)
 				if len(std_list_n) > 0:
 					std_dict = std_list_n[0]
-					pas.append(std_dict[m])
+					pas.append(std_dict[m]-blank_value)
 					concs.append(std_list_n[1])
 			print(pas, concs)
 			regr = linear_model.LinearRegression()

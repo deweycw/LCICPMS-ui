@@ -26,7 +26,7 @@ class PyLCICPMSUi(QMainWindow):
         super().__init__()
         # Set some main window's properties
         self.setWindowTitle('LC-ICP-MS Data Viewer')
-        self.setFixedSize(600, 700)
+        self.setFixedSize(600, 800)
         # Set the central widget
         self.generalLayout = QVBoxLayout()
         self.topLayout = QFormLayout()

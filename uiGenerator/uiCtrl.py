@@ -67,7 +67,6 @@ class PyLCICPMSCtrl:
 	def _importAndActivatePlotting(self):
 		'''activates plotting function after data imported'''
 		self._model.importData()
-		#self._view.plotSpace.clear()
 		self._view.buttons['Plot'].setEnabled(True)
 		self._view.setDisplayText(self._view.listwidget.currentItem().text())
 
@@ -76,26 +75,22 @@ class PyLCICPMSCtrl:
 		act_pos = self._view.chroma.mapFromScene(pos)
 		self._intPointX = act_pos.x()
 		self._intPointY = act_pos.y()
-		#print('(x,y) (' + str(act_pos.x()) + ',' + str(act_pos.y()/60) + ')')
 
 	def _onClick(self, event):
 		''' selects range for integration'''
 		self._act_pos = self._view.chroma.mapFromScene(event[0].scenePos())
-		#print('\tonclick')
-		#print('\tact pos: ' + str(self._act_pos.x()))
-		#print('\tlen int range: ' + str(len(self._intRange)))
 		cc = len(self._intRange)
 		cc = cc + 1
 		
 		if cc == 1: 
 			self._intRange.append(self._act_pos.x()) #.x() / 60 # in minutes
-			print('\txmin selection: '+str(self._act_pos.x()))
+			print('\txmin selection: %.2f' % self._act_pos.x())
 			self._model.plotLowRange(self._act_pos.x(),self._n)
 			self._minAssigned = True
 			
 		if (cc == 2) and self._minAssigned is True:
 			self._intRange.append(self._act_pos.x()) #.x() / 60 # in minutes
-			print('\txmax selection: '+str(self._act_pos.x()))
+			print('\txmax selection: %.2f' % self._act_pos.x())
 			self._model.plotHighRange(self._act_pos.x(),self._n)
 			self._view.integrateButtons['Integrate'].setEnabled(True)
 			self._view.integrateButtons['Integrate'].setStyleSheet("background-color: red")
@@ -106,25 +101,13 @@ class PyLCICPMSCtrl:
 	def _selectIntRange(self,checked):
 		'''select integration range'''
 		if self._view.intbox.isChecked() == True:
-			print(self._view.intbox.isChecked())
-			#print('\nselectfunct')
-			#print('times through _selectIntRange: ' + str(self._n))
-			#self._intRange = []
-			#self._clickCounter = 0
-			#print(self._intRange)
-			#self._view.chroma.scene().sigMouseMoved.connect(self._mouseover)
-			#if self.n_clicks < 2:
-			#self._view.chroma.scene().sigMouseClicked.connect(self._onClick)
 			self._view.proxy = pg.SignalProxy(self._view.chroma.scene().sigMouseClicked, rateLimit=60, slot=self._onClick)
 		else:
 			print(self._view.intbox.isChecked())
 			self._view.proxy = None
-			#self._n = 0
 			
 	def _Integrate(self):
 		''' call integration function'''
-		#print(self._xMin, self._xMax)
-		#data_to_integrate = self._data
 		self._model.integrate(self._intRange)
 		self._intRange = []
 		self._view.integrateButtons['Integrate'].setStyleSheet("background-color: light gray")

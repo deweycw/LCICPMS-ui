@@ -1,3 +1,4 @@
+from datetime import timedelta
 import sys 
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import * 
@@ -8,7 +9,7 @@ import os
 import pandas as pd
 from functools import partial
 import seaborn as sns
-
+import csv
 from .chroma import *
 from .pgChroma import *
 
@@ -33,8 +34,8 @@ class LICPMSfunctions:
 		
 	def importData(self):
 		'''imports LCICPMS .csv file'''
-		fdir = self._view.homeDir + self._view.listwidget.currentItem().text()
-		self._data = pd.read_csv(fdir,sep=';',skiprows = 0, header = 1)
+		self.fdir = self._view.homeDir + self._view.listwidget.currentItem().text()
+		self._data = pd.read_csv(self.fdir,sep=';',skiprows = 0, header = 1)
 
 	def plotActiveMetalsMP(self):
 		'''plots active metals for selected file'''
@@ -48,6 +49,9 @@ class LICPMSfunctions:
 	def integrate(self, intRange):
 		'''integrates over specified x range'''
 		self.intRange = intRange
+		time_holders = {'start_time': 0, 'stop_time' : 0}
+		metal_dict= {key: None for key in self._view.metalOptions}
+		metalConcs = {**time_holders,**metal_dict}
 
 		for metal in self._view.activeMetals:
 			time = self._data['Time ' + metal] / 60
@@ -66,28 +70,62 @@ class LICPMSfunctions:
 			#print( i_tmax, maxval/60, range_max)
 
 			#print(icpms_dataToSum)
+			metalConcs['start_time'] = '%.2f' % range_min
+			metalConcs['stop_time'] = '%.2f' % range_max
 
 			me_col_ind = self._data.columns.get_loc(metal)
 			summed_area = 0
+			timeDelta = 0
 			for i in range(i_tmin, i_tmax):
 				icp_1 = self._data.iloc[i,me_col_ind] # cps
 				icp_2 = self._data.iloc[i+1,me_col_ind]
 				min_height = min([icp_1,icp_2])
 				max_height = max([icp_1,icp_2])
+				#print('min height: %.2f' % min_height) 
+				#print('max height: %.2f' % max_height) 
+				
 				timeDelta = (self._data.iloc[i+1,me_col_ind - 1] - self._data.iloc[i,me_col_ind - 1])/60 # minutes; time is always to left of metal signal
+				#print('time step: %.4f' % timeDelta) 
 				#print(i, i+1, timeDelta)
 				#print(min_height, max_height)
 				rect_area = timeDelta * min_height
 				top_area = timeDelta * (max_height - min_height) * 0.5
 				An = rect_area + top_area
+				#print('rect area: %.2f' % rect_area)
+				#print('top area: %.2f' % top_area)
+				#print('dArea: %.2f' % An)
 				summed_area = summed_area + An  # area =  cps * sec = counts
+				
+			print('\n' + metal  + ' peak area: %.2f' % summed_area)
 
 			cal_curve = self._view.calCurves[metal]	
 			slope = cal_curve['m']
 			intercept = cal_curve['b']
 			conc_ppb = slope * summed_area + intercept
 			conc_uM = conc_ppb / self._view.masses[metal]
-			print(metal + ': %.2f' % conc_uM + ' uM')
+			
+			metalConcs[metal] = '%.2f' % conc_uM
+			print(metal + ' uM: %.4f' % conc_uM)
+
+		filename =  self._view.homeDir + 'peaks_uM_' + self.fdir.split('/')[-1].split(',')[0] + '.csv'
+
+		if os.path.exists(filename):
+			with open(filename, 'a', newline = '') as csvfile:
+				fwriter = csv.DictWriter(csvfile, fieldnames=metalConcs.keys())
+				fwriter.writerow(metalConcs) 		
+		else:
+			csv_cols = ['start_time', 'stop_time'] + self._view.metalOptions
+			with open(filename, 'w', newline = '') as csvfile:
+				fwriter = csv.writer(csvfile, delimiter = ',', quotechar = '|')
+				fwriter.writerow(['concentrations in uM',''])
+				fwriter.writerow(['time in minutes',''])
+				fwriter.writerow(csv_cols)
+			with open(filename, 'a', newline = '') as csvfile:
+				fwriter = csv.DictWriter(csvfile, fieldnames=metalConcs.keys())
+				fwriter.writerow(metalConcs) 	
+
+			#print('Intercept: %.4f' % intercept)
+			#print('Slope: %.8f' % slope) 
 
 	def plotLowRange(self,xmin,n):
 		'''plots integration range'''
