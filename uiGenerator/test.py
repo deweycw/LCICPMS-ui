@@ -24,7 +24,6 @@ print(X)
 print(y)
 regr = linear_model.LinearRegression()
 regr.fit(X, y)
-#x_test = np.arange(0,500,0.1).reshape(-1, 1)
 y_pred = regr.predict(X)
 # Print the Intercept:
 print('Intercept:', regr.intercept_)

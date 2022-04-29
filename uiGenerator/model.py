@@ -66,7 +66,8 @@ class LICPMSfunctions:
 		metalList = ['55Mn','56Fe','59Co','60Ni','63Cu','66Zn','111Cd', '208Pb']
 		metal_dict= {key: None for key in metalList}
 		metalConcs = {**time_holders,**metal_dict}
-		
+		peakAreas = {**time_holders,**metal_dict}
+
 		print(self._view.normAvIndium)
 		if self._view.normAvIndium > 0:
 			print('here norm')
@@ -96,6 +97,8 @@ class LICPMSfunctions:
 				#print(icpms_dataToSum)
 				metalConcs['start_time'] = '%.2f' % range_min
 				metalConcs['stop_time'] = '%.2f' % range_max
+				peakAreas['start_time'] = '%.2f' % range_min
+				peakAreas['stop_time'] = '%.2f' % range_max
 
 				me_col_ind = self._data.columns.get_loc(metal)
 				summed_area = 0
@@ -120,36 +123,76 @@ class LICPMSfunctions:
 					#print('dArea: %.2f' % An)
 					summed_area = summed_area + An  # area =  cps * sec = counts
 					
-				print('\n' + metal  + ' peak area: %.2f' % summed_area)
-
 				cal_curve = self._view.calCurves[metal]	
 				slope = cal_curve['m']
 				intercept = cal_curve['b']
 				conc_ppb = slope * summed_area + intercept
 				conc_uM = conc_ppb / self._view.masses[metal]
 				
+				peakAreas[metal] = '%.2f' % summed_area
 				metalConcs[metal] = '%.2f' % conc_uM
-				print(metal + ' uM: %.4f' % conc_uM)
+				print(metal + ' uM: %.2f' % conc_uM)
+				print('\n' + metal  + ' peak area: %.2f' % summed_area)
 
-		filename =  self._view.homeDir + 'peaks_uM_' + self.fdir.split('/')[-1].split(',')[0]
+		
+		if self._view.singleOutputFile == False:
+			filename =  self._view.homeDir + 'peaks_uM_' + self.fdir.split('/')[-1].split(',')[0]
 
-		if os.path.exists(filename):
-			with open(filename, 'a', newline = '') as csvfile:
-				fwriter = csv.DictWriter(csvfile, fieldnames=metalConcs.keys())
-				fwriter.writerow(metalConcs) 		
+			if os.path.exists(filename):
+				with open(filename, 'a', newline = '') as csvfile:
+					fwriter = csv.DictWriter(csvfile, fieldnames=metalConcs.keys())
+					fwriter.writerow(metalConcs) 		
+			else:
+				csv_cols = ['start_time', 'stop_time'] + metalList
+				with open(filename, 'w', newline = '') as csvfile:
+					fwriter = csv.writer(csvfile, delimiter = ',', quotechar = '|')
+					if self._view.normAvIndium > 0:
+						fwriter.writerow(['115In correction applied: %.3f' % corr_factor,''])
+					fwriter.writerow(['concentrations in uM',''])
+					fwriter.writerow(['time in minutes',''])
+					fwriter.writerow(csv_cols)
+				with open(filename, 'a', newline = '') as csvfile:
+					fwriter = csv.DictWriter(csvfile, fieldnames=metalConcs.keys())
+					fwriter.writerow(metalConcs) 	
 		else:
-			csv_cols = ['start_time', 'stop_time'] + metalList
-			with open(filename, 'w', newline = '') as csvfile:
-				fwriter = csv.writer(csvfile, delimiter = ',', quotechar = '|')
-				if self._view.normAvIndium > 0:
-					fwriter.writerow(['115In correction applied',''])
-				fwriter.writerow(['concentrations in uM',''])
-				fwriter.writerow(['time in minutes',''])
-				fwriter.writerow(csv_cols)
-			with open(filename, 'a', newline = '') as csvfile:
-				fwriter = csv.DictWriter(csvfile, fieldnames=metalConcs.keys())
-				fwriter.writerow(metalConcs) 	
+			filename =  self._view.homeDir + 'concentrations_uM_all.csv' 
 
+			metalConcs = {**{'filename':self.fdir.split('/')[-1].split(',')[0]},**metalConcs}
+			if os.path.exists(filename):
+				with open(filename, 'a', newline = '') as csvfile:
+					fwriter = csv.DictWriter(csvfile, fieldnames=metalConcs.keys())
+					fwriter.writerow(metalConcs) 		
+			else:
+				csv_cols = ['filename','start_time', 'stop_time'] + metalList
+				with open(filename, 'w', newline = '') as csvfile:
+					fwriter = csv.writer(csvfile, delimiter = ',', quotechar = '|')
+					if self._view.normAvIndium > 0:
+						fwriter.writerow(['115In correction applied: %.3f' % corr_factor,''])
+					fwriter.writerow(['concentrations in uM',''])
+					fwriter.writerow(['time in minutes',''])
+					fwriter.writerow(csv_cols)
+				with open(filename, 'a', newline = '') as csvfile:
+					fwriter = csv.DictWriter(csvfile, fieldnames=metalConcs.keys())
+					fwriter.writerow(metalConcs) 
+
+			filename =  self._view.homeDir + 'peakareas_counts_all.csv' 
+
+			peakAreas = {**{'filename':self.fdir.split('/')[-1].split(',')[0]},**peakAreas}
+			if os.path.exists(filename):
+				with open(filename, 'a', newline = '') as csvfile:
+					fwriter = csv.DictWriter(csvfile, fieldnames=peakAreas.keys())
+					fwriter.writerow(peakAreas) 		
+			else:
+				csv_cols = ['filename','start_time', 'stop_time'] + metalList
+				with open(filename, 'w', newline = '') as csvfile:
+					fwriter = csv.writer(csvfile, delimiter = ',', quotechar = '|')
+					if self._view.normAvIndium > 0:
+						fwriter.writerow(['115In correction applied: %.3f' % corr_factor,''])
+					fwriter.writerow(['time in minutes',''])
+					fwriter.writerow(csv_cols)
+				with open(filename, 'a', newline = '') as csvfile:
+					fwriter = csv.DictWriter(csvfile, fieldnames=peakAreas.keys())
+					fwriter.writerow(peakAreas) 
 			#print('Intercept: %.4f' % intercept)
 			#print('Slope: %.8f' % slope) 
 
@@ -163,3 +206,9 @@ class LICPMSfunctions:
 		col = self.intColors[n]
 		self.maxline = pg.InfiniteLine(xmax, pen=col,angle = 90)
 		self._view.plotSpace.addItem(self.maxline)
+
+	def removeIntRange(self):
+		self._view.plotSpace.removeItem(self.maxline)
+		self._view.plotSpace.removeItem(self.minline)
+
+

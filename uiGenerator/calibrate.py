@@ -14,6 +14,7 @@ import json
 import matplotlib.pyplot as plt
 from .chroma import *
 from .pgChroma import *
+import csv
 
 __version__ = '0.1'
 __author__ = 'Christian Dewey'
@@ -32,6 +33,7 @@ class CalibrateFunctions:
 		"""Controller initializer."""
 		self._calview = calview
 		self._mainview = mainview
+		self.ntime = True
 		self.intColors = sns.color_palette(n_colors = 6, as_cmap = True)
 		
 	def importData(self):
@@ -86,6 +88,14 @@ class CalibrateFunctions:
 				
 			self._calview.n_area = pa_dict
 
+		filename =  self._calview.calibrationDir + 'calibration_areas.txt' 
+		with open(filename, 'a', newline = '') as csvfile:
+			fwriter = csv.DictWriter(csvfile, fieldnames=pa_dict.keys())
+			if self.ntime == True:
+				fwriter.writeheader()
+				self.ntime = False
+			fwriter.writerow(pa_dict) 
+
 	def plotLowRange(self,xmin,n):
 		'''plots integration range'''
 		col = self.intColors[n]
@@ -103,8 +113,8 @@ class CalibrateFunctions:
 		metals = self._calview.activeMetals
 		blank_value = 0
 		blank_dict = {}
-		for m in metals:
 
+		for m in metals:
 			pas = []
 			concs = [] 
 			for std in self._calview.standards.keys():
@@ -150,8 +160,8 @@ class CalibrateFunctions:
 		
 			host.set_title(m)
 
-			fname = self._calnview.calibrationDir + m + '_calibration.png'
-			plt.savefig(fname)
+			fname = self._calview.calibrationDir + m + '_calibration.png'
+			plt.savefig(fname, dpi = 300)
 			plt.show()
 		
 			calCurve_dict[m] = [regr,(mean_squared_error(X, y),r2_score(X, y))]
@@ -166,3 +176,5 @@ class CalibrateFunctions:
 		savefile = self._calview.calibrationDir + 'calibration_curve.calib'
 		with open(savefile, 'w') as file:
 			file.write(json.dumps(saveDict))
+		
+		

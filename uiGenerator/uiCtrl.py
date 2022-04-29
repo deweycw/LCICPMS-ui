@@ -140,6 +140,13 @@ class PyLCICPMSCtrl:
 		else:
 			print(self._view.intbox.isChecked())
 			self._view.proxy = None
+
+	def _selectOneFile(self,checked):
+		'''select integration range'''
+		if self._view.oneFileBox.isChecked() == True:
+			self._view.singleOutputFile = True
+		else:
+			self._view.singleOutputFile = False
 			
 	def _Integrate(self):
 		''' call integration function'''
@@ -190,6 +197,11 @@ class PyLCICPMSCtrl:
 		print(self._view.normAvIndium)
 		self._view.integrateButtons['115In Correction'].setEnabled(False)
 		
+	def _resetIntegrate(self):
+		self._intRange = []
+		self._model.removeIntRange()
+		self._view.integrateButtons['Integrate'].setStyleSheet("background-color: light gray")
+		self._view.integrateButtons['Integrate'].setEnabled(False)
 
 	def _connectSignals(self):
 		"""Connect signals and slots."""
@@ -220,6 +232,7 @@ class PyLCICPMSCtrl:
 			cbox.stateChanged.connect(partial( self._view.clickBox, cbox) )
 
 		self._view.intbox.stateChanged.connect(self._selectIntRange)
+		self._view.oneFileBox.stateChanged.connect(self._selectOneFile)
 
 		self._view.buttons['Plot'].clicked.connect(self._makePlot)
 		self._view.buttons['Reset'].clicked.connect(self._clearForm)	
@@ -228,6 +241,7 @@ class PyLCICPMSCtrl:
 		self._view.integrateButtons['Load Cal.'].clicked.connect(self._loadCalFile)
 		self._view.integrateButtons['Integrate'].clicked.connect(self._Integrate)
 		self._view.integrateButtons['115In Correction'].clicked.connect(self._selectInNormFile)
+		self._view.integrateButtons['Reset Integration'].clicked.connect(self._resetIntegrate)
 		
 
 

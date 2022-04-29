@@ -42,8 +42,7 @@ class PyLCICPMSUi(QMainWindow):
 		self.homeDir = '' #/Users/christiandewey/'# '/Users/christiandewey/presentations/DOE-PI-22/day6/day6/'
 		self.activeMetals = []
 		self.metalOptions = ['55Mn','56Fe','59Co','60Ni','63Cu','66Zn','111Cd','115In', '208Pb']
-		# Create the display and the buttons
-		
+		self.singleOutputFile = False		
 		
 		self._createButtons()
 		self._createListbox()
@@ -111,27 +110,32 @@ class PyLCICPMSUi(QMainWindow):
 		# Add some checkboxes to the layout  
 		#self.integrateBox= []      
 		self.integrateLayout = QHBoxLayout()
+		checkboxLayout =QVBoxLayout()
 		self.intbox = QCheckBox('Select integration range?')
-		#self.checkBoxes.append(self.intbox)
-		self.integrateLayout.addWidget(self.intbox)
-   #    # optionwidget.stateChanged.connect(self.clickBox)
-   #     self.generalLayout.addLayout(self.integrateLayout)
+		self.oneFileBox = QCheckBox('Single output file?')
+		checkboxLayout.addWidget(self.intbox)
+		checkboxLayout.addWidget(self.oneFileBox)
+		self.integrateLayout.addLayout(checkboxLayout)
+
 	
 	def _createIntegrateLayout(self):
 		"""Create the integrate buttons."""
 		self.integrateButtons = {}
-		intButtonLayout = QGridLayout()
+		self.intButtonLayout = QGridLayout()
 		# Button text | position on the QGridLayout
-		intbuttons = {'Integrate': (0,0),'Load Cal.': (0,1),'Calibrate': (0,2), '115In Correction': (0,3)}
+		intbuttons = {'Integrate': (0,0),'Load Cal.': (0,2),'Calibrate': (0,3), '115In Correction': (0,1), 'Reset Integration': (1,0)}
 		# Create the buttons and add them to the grid layout
 		for btnText, pos in intbuttons.items():
 			self.integrateButtons[btnText] = QPushButton(btnText)			
-			self.integrateButtons[btnText].setFixedSize(122, 40)
-			intButtonLayout.addWidget(self.integrateButtons[btnText], pos[0],pos[1])
+			if 'Reset' not in btnText:
+				self.integrateButtons[btnText].setFixedSize(122, 40)
+			else:
+				self.integrateButtons[btnText].setFixedSize(130, 40)
+			self.intButtonLayout.addWidget(self.integrateButtons[btnText], pos[0],pos[1])
 
 			
 			
-		self.integrateLayout.addLayout(intButtonLayout)
+		self.integrateLayout.addLayout(self.intButtonLayout)
 		# Add buttonsLayout to the general layout
 		self.generalLayout.addLayout(self.integrateLayout)
 
@@ -149,7 +153,7 @@ class PyLCICPMSUi(QMainWindow):
 		label_text = 'No calibration file'
 		self.calib_label.setText(label_text)
 		#label_text = 
-		self.generalLayout.addWidget(self.calib_label)	
+		self.intButtonLayout.addWidget(self.calib_label,1,3)	
 	'''
 	def _createListbox(self):
 	

@@ -30,7 +30,7 @@ def main():
 
     # Create instances of the model and the controller
     PyLCICPMSCtrl(model=model, view=view,calwindow= calWindow)
-    # Execute the calculator's main loop
+    # Execute the main loop
     if (sys.flags.interactive != 1) or not hasattr(Qt, 'PYQT_VERSION'):
         pycalc.exec_()
     #sys.exit(pycalc.exec_())
