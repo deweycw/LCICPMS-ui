@@ -43,7 +43,8 @@ class PyLCICPMSUi(QMainWindow):
 		self.activeMetals = []
 		self.metalOptions = ['55Mn','56Fe','59Co','60Ni','63Cu','66Zn','111Cd','115In', '208Pb']
 		self.singleOutputFile = False		
-		
+		self.baseSubtract = False 
+
 		self._createButtons()
 		self._createListbox()
 		self._createCheckBoxes()
@@ -113,8 +114,10 @@ class PyLCICPMSUi(QMainWindow):
 		checkboxLayout =QVBoxLayout()
 		self.intbox = QCheckBox('Select integration range?')
 		self.oneFileBox = QCheckBox('Single output file?')
+		self.baseSubtractBox = QCheckBox('Baseline subtraction?')
 		checkboxLayout.addWidget(self.intbox)
 		checkboxLayout.addWidget(self.oneFileBox)
+		checkboxLayout.addWidget(self.baseSubtractBox)
 		self.integrateLayout.addLayout(checkboxLayout)
 
 	

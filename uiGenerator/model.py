@@ -70,9 +70,11 @@ class LICPMSfunctions:
 
 		print(self._view.normAvIndium)
 		if self._view.normAvIndium > 0:
-			print('here norm')
 			indium_col_ind = self._data.columns.get_loc('115In')
-			corr_factor = np.average(self._data.iloc[550:2500,indium_col_ind]) / self._view.normAvIndium  #550:2500 indices correspond to ~ 150 to 350 sec
+			if len(self._data['Time 115In']) > 2000:
+				corr_factor = np.average(self._data.iloc[550:2500,indium_col_ind]) / self._view.normAvIndium  #550:2500 indices correspond to ~ 150 to 350 sec
+			else:
+				corr_factor = np.average(self._data.iloc[:,indium_col_ind]) / self._view.normAvIndium  #550:2500 indices correspond to ~ 150 to 350 sec
 			print(corr_factor)
 		else:
 			corr_factor = 1
@@ -103,7 +105,7 @@ class LICPMSfunctions:
 				me_col_ind = self._data.columns.get_loc(metal)
 				summed_area = 0
 				timeDelta = 0
-				for i in range(i_tmin, i_tmax):
+				for i in range(i_tmin, i_tmax+1):
 					icp_1 = self._data.iloc[i,me_col_ind] / corr_factor# cps
 					icp_2 = self._data.iloc[i+1,me_col_ind] / corr_factor
 					min_height = min([icp_1,icp_2])
@@ -118,21 +120,48 @@ class LICPMSfunctions:
 					rect_area = timeDelta * min_height
 					top_area = timeDelta * (max_height - min_height) * 0.5
 					An = rect_area + top_area
+					#print('An: %.2f' % An )
 					#print('rect area: %.2f' % rect_area)
 					#print('top area: %.2f' % top_area)
 					#print('dArea: %.2f' % An)
 					summed_area = summed_area + An  # area =  cps * sec = counts
+				
+				#print('yes base subtract')
+				if self._view.baseSubtract == True:
+					#print('yes base subtract')
+					baseline_height_1 = self._data.iloc[i_tmin,me_col_ind] / corr_factor
+					baseline_height_2 =  self._data.iloc[i_tmax,me_col_ind] / corr_factor
+					baseline_timeDelta = (self._data.iloc[i_tmax,me_col_ind - 1] - self._data.iloc[i_tmin,me_col_ind - 1])/60 #minutes
+					#print('baseline_height_1: %.2f' % baseline_height_1)
+					#print('baseline_height_2: %.2f' % baseline_height_2)
+					#print('timeDelta: %.2f' % baseline_timeDelta)
+
+					min_base_height = min([baseline_height_1, baseline_height_2])
+					max_base_height = max([baseline_height_1, baseline_height_2])
+					#print('min_base_height: %.2f' % min_base_height)
+					#print('max_base_height: %.2f' % max_base_height)
+					baseline_area_1 = min_base_height * baseline_timeDelta
+					baseline_area_2 = (max_base_height - min_base_height) * baseline_timeDelta * 0.5
+					#print('baseline_area_1: %.2f' % baseline_area_1)
+					#print('baseline_area_2: %.2f' % baseline_area_2)
 					
+					#print('summed_area: %.2f' % summed_area)
+					baseline_area = baseline_area_1 + baseline_area_2
+					summed_area = summed_area - baseline_area
+					summed_area = max(summed_area,0)
+					#print('baseline_area: %.2f' % baseline_area)
+					
+
 				cal_curve = self._view.calCurves[metal]	
 				slope = cal_curve['m']
 				intercept = cal_curve['b']
 				conc_ppb = slope * summed_area + intercept
 				conc_uM = conc_ppb / self._view.masses[metal]
 				
-				peakAreas[metal] = '%.2f' % summed_area
-				metalConcs[metal] = '%.2f' % conc_uM
-				print(metal + ' uM: %.2f' % conc_uM)
-				print('\n' + metal  + ' peak area: %.2f' % summed_area)
+				peakAreas[metal] = '%.1f' % summed_area
+				metalConcs[metal] = '%.3f' % conc_uM
+				print('\n' + metal + ' uM: %.3f' % conc_uM)
+				print(metal  + ' peak area: %.1f' % summed_area)
 
 		
 		if self._view.singleOutputFile == False:

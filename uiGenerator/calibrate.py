@@ -128,10 +128,9 @@ class CalibrateFunctions:
 					pas.append(std_dict[m]-blank_value)
 					concs.append(std_list_n[1])
 			print(pas, concs)
-			regr = linear_model.LinearRegression()
 			X = np.array(pas).reshape(-1, 1)
 			y = np.array(concs)
-			regr = linear_model.LinearRegression()
+			regr = linear_model.LinearRegression(fit_intercept=False)
 			regr.fit(X, y)
 
 			y_pred = regr.predict(X)

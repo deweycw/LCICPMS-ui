@@ -147,6 +147,14 @@ class PyLCICPMSCtrl:
 			self._view.singleOutputFile = True
 		else:
 			self._view.singleOutputFile = False
+
+	def _baselineSubtraction(self,checked):
+		'''select integration range'''
+		if self._view.baseSubtractBox.isChecked() == True:
+			print('base subtract box')
+			self._view.baseSubtract = True
+		else:
+			self._view.baseSubtract = False
 			
 	def _Integrate(self):
 		''' call integration function'''
@@ -233,6 +241,7 @@ class PyLCICPMSCtrl:
 
 		self._view.intbox.stateChanged.connect(self._selectIntRange)
 		self._view.oneFileBox.stateChanged.connect(self._selectOneFile)
+		self._view.baseSubtractBox.stateChanged.connect(self._baselineSubtraction)
 
 		self._view.buttons['Plot'].clicked.connect(self._makePlot)
 		self._view.buttons['Reset'].clicked.connect(self._clearForm)	
