@@ -46,7 +46,6 @@ class CalCtrlFunctions:
 		self._connectSignals()
 
 	def _selectDirectory(self):
-		print('here2')
 		dialog = QFileDialog()
 		dialog.setWindowTitle("Select Calibration Directory")
 		dialog.setViewMode(QFileDialog.Detail)
@@ -161,6 +160,7 @@ class CalCtrlFunctions:
 
 			self.getStdConc()
 			self._calview.plotSpace.clear()
+			self._calview.integrateButtons['Enter'].setEnabled(False)
 		else:
 			self._calview.stdConcEntry.setStyleSheet("background-color: yellow")
 
@@ -204,7 +204,8 @@ class CalCtrlFunctions:
 		for rbutton in self._calview.stdsRadioButtons.values():
 			rbutton.toggled.connect(partial(self._selectCalPeak, rbutton) )
 
-		self._calview.buttons['Load'].clicked.connect(self._importAndActivatePlotting)
+		#self._calview.buttons['Load'].clicked.connect(self._importAndActivatePlotting)
+		self._calview.listwidget.currentItemChanged.connect(self._importAndActivatePlotting)
 	#	self._calview.buttons['Plot'].setEnabled(False)
 		#self._calview.ok_button.setEnabled(False)
 		self._calview.integrateButtons['Enter'].setEnabled(False)

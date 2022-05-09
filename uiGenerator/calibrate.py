@@ -152,7 +152,7 @@ class CalibrateFunctions:
 			host.scatter(X/1000, y, color="black")
 			host.plot(X/1000, y_pred, color="blue", linewidth=3)
 
-			host.set_xlabel('ICP-MS counts / 1000')
+			host.set_xlabel(r'Peak Area ($10^3$ ICP-MS counts)')
 			host.set_ylabel('Standard Conc. (ppb)')
 			host.text(0.8,0.5,'$R^2$ = %.4f' % r2, transform = host.transAxes)
 			host.text(0.8,0.4,'MSE = %.2f' % mse, transform = host.transAxes)

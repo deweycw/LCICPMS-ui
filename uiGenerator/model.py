@@ -37,8 +37,10 @@ class LICPMSfunctions:
 		
 	def importData(self):
 		'''imports LCICPMS .csv file'''
-		self.fdir = self._view.homeDir + self._view.listwidget.currentItem().text()
-		self._data = pd.read_csv(self.fdir,sep=';',skiprows = 0, header = 1)
+		print(self._view.listwidget.currentItem().text())
+		if self._view.listwidget.currentItem() is not None:
+			self.fdir = self._view.homeDir + self._view.listwidget.currentItem().text()
+			self._data = pd.read_csv(self.fdir,sep=';',skiprows = 0, header = 1)
 
 	def importData_generic(self,fdir):
 		'''imports LCICPMS .csv file'''
@@ -75,7 +77,7 @@ class LICPMSfunctions:
 				corr_factor = np.average(self._data.iloc[550:2500,indium_col_ind]) / self._view.normAvIndium  #550:2500 indices correspond to ~ 150 to 350 sec
 			else:
 				corr_factor = np.average(self._data.iloc[:,indium_col_ind]) / self._view.normAvIndium  #550:2500 indices correspond to ~ 150 to 350 sec
-			print(corr_factor)
+			print('\ncorrection factor: %.4f' % corr_factor)
 		else:
 			corr_factor = 1
 
@@ -227,12 +229,12 @@ class LICPMSfunctions:
 
 	def plotLowRange(self,xmin,n):
 		'''plots integration range'''
-		col = self.intColors[n]
+		col = self.intColors[0]
 		self.minline = pg.InfiniteLine(xmin, pen = col, angle = 90)
 		self._view.plotSpace.addItem(self.minline) #InfiniteLine(minInt,angle = 90)
 		
 	def plotHighRange(self,xmax,n):
-		col = self.intColors[n]
+		col = self.intColors[0]
 		self.maxline = pg.InfiniteLine(xmax, pen=col,angle = 90)
 		self._view.plotSpace.addItem(self.maxline)
 

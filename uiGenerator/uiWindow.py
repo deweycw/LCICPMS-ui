@@ -153,7 +153,7 @@ class PyLCICPMSUi(QMainWindow):
 	def _showActiveCalibFile(self):
 		self.calib_label = QLabel()
 		self.calib_label.setAlignment(Qt.AlignRight)
-		label_text = 'No calibration file'
+		label_text = 'No calibration'
 		self.calib_label.setText(label_text)
 		#label_text = 
 		self.intButtonLayout.addWidget(self.calib_label,1,3)	
@@ -194,8 +194,9 @@ class PyLCICPMSUi(QMainWindow):
 		self.generalLayout.addLayout(buttonsLayout)
 	
 	def clicked(self):
+		print('hh')
 		item = self.listwidget.currentItem()
-		print('file: ' + item.text())
+		print('\nfile: ' + item.text())
 		return self.listwidget.currentItem()
 	
 	def setDisplayText(self, text):

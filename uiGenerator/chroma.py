@@ -44,7 +44,6 @@ class ICPMS_Data_Class:
 		host.set_xlabel("Retention time (min)")
 		host.set_ylabel('ICP-MS signal intensity (cps x 1000)')
 		
-		
 		if self.max_icp == None:
 			self.max_icp = icpms_max
 
@@ -104,10 +103,10 @@ class ICPMS_Data_Class:
 		host.ticklabel_format(style='plain', axis='y', useMathText=True,scilimits=(0,0))
 		sns.despine()
 		return fig
-
 '''
-import pandas as pd
 
+import pandas as pd
+data_dir = '/Users/christiandewey/manuscripts/in progress/LC-ICPMS/data/python/column-test/data-for-retention-plot'
 dir = '/Users/christiandewey/presentations/DOE-PI-22/day6/day6/cwd_211018_day6_13_kinnetex_er2040_10uL.csv'
 df = pd.read_csv(dir,sep=';',skiprows = 0, header = 1)
 metals_p = ICPMS_Data_Class( df,['56Fe','60Ni'])
@@ -146,6 +145,5 @@ metals_p.chroma().show()
 
 
 plt.close('all')
-
 
 '''

@@ -185,10 +185,10 @@ class Calibration(QWidget):
 		self.buttons = {}
 		buttonsLayout = QGridLayout()
 		# Button text | position on the QGridLayout
-		buttons = {'Load': (0, 0),
+		buttons = {#'Load': (0, 0),
 				   #'Plot': (0, 1),
-				   'Directory': (0,1),
-				   'Reset': (0, 2)
+				   'Directory': (0,0),
+				   'Reset': (0, 1)
 				  }
 		# Create the buttons and add them to the grid layout
 		for btnText, pos in buttons.items():

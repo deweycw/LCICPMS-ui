@@ -47,11 +47,13 @@ class PyLCICPMSCtrl:
 		self._connectSignals()
 
 	def _selectDirectory(self):
-		print('here')
+		self._view.homeDir = ''
+		self._view.listwidget.clear()
 		dialog = QFileDialog()
 		dialog.setWindowTitle("Select LC-ICPMS Directory")
 		dialog.setViewMode(QFileDialog.Detail)
 		self._view.homeDir = str(dialog.getExistingDirectory(self._view,"Select Directory:")) + '/'
+		
 		self._createListbox()
 		self._view.integrateButtons['Calibrate'].setEnabled(True)
 		self._view.integrateButtons['Load Cal.'].setEnabled(True)
@@ -59,15 +61,16 @@ class PyLCICPMSCtrl:
 		self._view.buttons['Load'].setEnabled(True)
 
 	def _createListbox(self):
-	
+		
+		self._view.listwidget.clear()
+		
 		test_dir = self._view.homeDir #'/Users/christiandewey/presentations/DOE-PI-22/day6/day6/'
 		i = 0
 		for name in sorted(os.listdir(test_dir)):
 			if '.csv' in name: 
 				self._view.listwidget.insertItem(i, name)
 				i = i + 1
-
-		self._view.listwidget.clicked.connect(self._view.clicked)
+		#self._view.listwidget.clicked.connect(self._view.clicked)
 		#listBoxLayout.addWidget(self.listwidget)
 		#self.listwidget.setMaximumHeight(250)
 		#self.generalLayout.addLayout(listBoxLayout)
@@ -97,13 +100,16 @@ class PyLCICPMSCtrl:
 		if self._view.activeMetals == []: 
 			for cbox in self._view.checkBoxes.values():
 				cbox.setChecked(True)
-		self._model.importData()
-		self._view.buttons['Plot'].setEnabled(True)
-		self._view.setDisplayText(self._view.listwidget.currentItem().text())
+		#self._model.importData()
+		#self._view.buttons['Plot'].setEnabled(True)
+		if self._view.listwidget.currentItem() is not None:
+			self._view.setDisplayText(self._view.listwidget.currentItem().text())
+			self._model.importData()
+			self._view.buttons['Plot'].setEnabled(True)
 		#self._view.activeMetals.append('115In')
-		self._makePlot()
-		self._view.buttons['Reset'].setEnabled(True)
-		self._view.listwidget.setFocus()
+			self._makePlot()
+			self._view.buttons['Reset'].setEnabled(True)
+			self._view.listwidget.setFocus()
 
 	def _mouseover(self, pos):
 		''' selects range for integration'''
@@ -119,13 +125,13 @@ class PyLCICPMSCtrl:
 		
 		if cc == 1: 
 			self._intRange.append(self._act_pos.x()) #.x() / 60 # in minutes
-			print('\txmin selection: %.2f' % self._act_pos.x())
+			print('\nxmin selection: %.2f' % self._act_pos.x())
 			self._model.plotLowRange(self._act_pos.x(),self._n)
 			self._minAssigned = True
 			
 		if (cc == 2) and self._minAssigned is True:
 			self._intRange.append(self._act_pos.x()) #.x() / 60 # in minutes
-			print('\txmax selection: %.2f' % self._act_pos.x())
+			print('xmax selection: %.2f' % self._act_pos.x())
 			self._model.plotHighRange(self._act_pos.x(),self._n)
 			self._view.integrateButtons['Integrate'].setEnabled(True)
 			self._view.integrateButtons['Integrate'].setStyleSheet("background-color: red")
@@ -151,7 +157,7 @@ class PyLCICPMSCtrl:
 	def _baselineSubtraction(self,checked):
 		'''select integration range'''
 		if self._view.baseSubtractBox.isChecked() == True:
-			print('base subtract box')
+			#print('base subtract box')
 			self._view.baseSubtract = True
 		else:
 			self._view.baseSubtract = False
@@ -192,7 +198,7 @@ class PyLCICPMSCtrl:
 
 		print('Loaded calibration file: ' + calfile)
 
-		self._view.calib_label.setText('Calibration file loaded')
+		self._view.calib_label.setText('Calibration loaded')
 
 	def _selectInNormFile(self):
 		''' opens window to select normalization file for 115In correction; saves average 115In signal from norm file'''
@@ -202,7 +208,7 @@ class PyLCICPMSCtrl:
 		filepath = dialog.getOpenFileName(self._view,"Openfile")[0]
 		normData = self._model.importData_generic(fdir = filepath )
 		self._view.normAvIndium = np.average(normData['115In'])
-		print(self._view.normAvIndium)
+		#print(self._view.normAvIndium)
 		self._view.integrateButtons['115In Correction'].setEnabled(False)
 		
 	def _resetIntegrate(self):
