@@ -2,7 +2,7 @@
 
  To install:
 	
-	1) first, clone the main repository: 
+	1) first, clone a specific branch from the repository: 
 	
 		git clone --single-branch --branch <branch_name> https://github.com/deweycw/LCICPMS-ui.git
 
