@@ -159,12 +159,15 @@ class CalCtrlFunctions:
 			print(self._calview.standards)
 
 			self.getStdConc()
-			self._calview.plotSpace.clear()
+			
 			self._calview.integrateButtons['Enter'].setEnabled(False)
 		else:
 			self._calview.stdConcEntry.setStyleSheet("background-color: yellow")
 
 		#self._calview.plotSpace.clear()
+	def _clearPlot(self):
+		''' clears plot area'''
+		self._calview.plotSpace.clear()
 
 	def getStdConc(self):
 		print(self.currentStd)
@@ -210,7 +213,8 @@ class CalCtrlFunctions:
 		#self._calview.ok_button.setEnabled(False)
 		self._calview.integrateButtons['Enter'].setEnabled(False)
 		#self._calview.buttons['Plot'].clicked.connect(self._makePlot)
-		self._calview.buttons['Reset'].clicked.connect(self._clearForm)	
+		self._calview.buttons['Reset'].clicked.connect(self._clearForm)
+		self._calview.buttons['Clear Plot'].clicked.connect(self._clearPlot)		
 		self._calview.integrateButtons['Enter'].clicked.connect(self._Integrate)
 		#self._calview.ok_button.clicked.connect(self.getStdConc)
 		self._calview.integrateButtons['Calculate Curve'].clicked.connect(self._calcCurve)
