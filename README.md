@@ -23,7 +23,7 @@ Note: The GUI currently only runs on Python 3.6. Download and install Python 3.6
     	
     	in MacOS: source env/bin/activate
     	
-    	in Windows: .\env\Scripts\activate
+    	in Windows: .\env\Scripts\activate 
 		if you see an error in Windows about the Execution Policy, run the following as an administrator: Set-ExecutionPolicy AllSigned
 
 		note: to deactivate the virtual environment, simply run: 	deactivate
