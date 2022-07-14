@@ -67,8 +67,9 @@ class LICPMSfunctions:
 		time_holders = {'start_time': 0, 'stop_time' : 0}
 		metalList = ['55Mn','56Fe','59Co','60Ni','63Cu','66Zn','111Cd', '208Pb']
 		metal_dict= {key: None for key in metalList}
-		metalConcs = {**time_holders,**metal_dict}
-		peakAreas = {**time_holders,**metal_dict}
+		corr_dict = {'correction': None}
+		metalConcs = {**time_holders,**corr_dict,**metal_dict}
+		peakAreas = {**time_holders,**corr_dict,**metal_dict}
 
 		print(self._view.normAvIndium)
 		if self._view.normAvIndium > 0:
@@ -103,6 +104,9 @@ class LICPMSfunctions:
 				metalConcs['stop_time'] = '%.2f' % range_max
 				peakAreas['start_time'] = '%.2f' % range_min
 				peakAreas['stop_time'] = '%.2f' % range_max
+
+				metalConcs['correction'] = '%.3f' % corr_factor 
+				peakAreas['correction'] = '%.3f' % corr_factor 
 
 				me_col_ind = self._data.columns.get_loc(metal)
 				summed_area = 0
@@ -174,7 +178,7 @@ class LICPMSfunctions:
 					fwriter = csv.DictWriter(csvfile, fieldnames=metalConcs.keys())
 					fwriter.writerow(metalConcs) 		
 			else:
-				csv_cols = ['start_time', 'stop_time'] + metalList
+				csv_cols = ['start_time', 'stop_time','correction'] + metalList
 				with open(filename, 'w', newline = '') as csvfile:
 					fwriter = csv.writer(csvfile, delimiter = ',', quotechar = '|')
 					if self._view.normAvIndium > 0:
@@ -194,11 +198,11 @@ class LICPMSfunctions:
 					fwriter = csv.DictWriter(csvfile, fieldnames=metalConcs.keys())
 					fwriter.writerow(metalConcs) 		
 			else:
-				csv_cols = ['filename','start_time', 'stop_time'] + metalList
+				csv_cols = ['filename','start_time', 'stop_time','correction'] + metalList
 				with open(filename, 'w', newline = '') as csvfile:
 					fwriter = csv.writer(csvfile, delimiter = ',', quotechar = '|')
-					if self._view.normAvIndium > 0:
-						fwriter.writerow(['115In correction applied: %.3f' % corr_factor,''])
+				#	if self._view.normAvIndium > 0:
+			#		fwriter.writerow(['115In correction applied: %.3f' % corr_factor,''])
 					fwriter.writerow(['concentrations in uM',''])
 					fwriter.writerow(['time in minutes',''])
 					fwriter.writerow(csv_cols)

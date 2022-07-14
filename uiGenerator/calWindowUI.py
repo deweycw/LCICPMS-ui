@@ -188,12 +188,13 @@ class Calibration(QWidget):
 		buttons = {#'Load': (0, 0),
 				   #'Plot': (0, 1),
 				   'Directory': (0,0),
-				   'Reset': (0, 1)
+				   'Reset': (0, 1),
+				   'Clear Plot': (0, 2)
 				  }
 		# Create the buttons and add them to the grid layout
 		for btnText, pos in buttons.items():
 			self.buttons[btnText] = QPushButton(btnText)
-			self.buttons[btnText].setFixedSize(80, 40)
+			self.buttons[btnText].setFixedSize(100, 40)
 			buttonsLayout.addWidget(self.buttons[btnText], pos[0], pos[1])
 		# Add buttonsLayout to the general layout
 		self.generalLayout.addLayout(buttonsLayout)

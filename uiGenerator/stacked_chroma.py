@@ -144,7 +144,7 @@ class ICPMS_Data_Class:
 import pandas as pd
 
 
-data_dir = '/Users/christiandewey/manuscripts/in progress/LC-ICPMS/data/python/column-test/data-for-retention-plot/'
+data_dir = '/Users/christiandewey/manuscripts/in progress/LC-ICPMS/data/python/soil-samples/plotting-data/' #'/Users/christiandewey/manuscripts/in progress/LC-ICPMS/data/python/column-test/data-for-retention-plot/'
 
 for ff in os.listdir(data_dir):
 	if '.csv' in ff:
@@ -152,10 +152,12 @@ for ff in os.listdir(data_dir):
 		df = pd.read_csv(data_dir + ff,sep=';',skiprows = 0, header = 1)
 		print(csvf)
 		pname = csvf.split('_')[4] + '_' + csvf.split('_')[5] + '_' + csvf.split('_')[6]
-		metals_p = ICPMS_Data_Class( df,['56Fe','59Co','60Ni','63Cu','66Zn','111Cd','208Pb'],nax = 7,fname = pname + '_nospan.eps')  #-noshade
+		#metals_p = ICPMS_Data_Class( df,['56Fe','59Co','60Ni','63Cu','66Zn','111Cd','208Pb'],nax = 7,fname = pname + '_nospan.eps')  #-noshade
+		metals_p = ICPMS_Data_Class( df,['56Fe','60Ni','63Cu'],nax = 3,fname = pname + '_nospan.eps')  #-noshade
+
 
 		metals_p.min_time = 0
-		metals_p.max_time = 20
+		metals_p.max_time = 25
 		metals_p.chroma_subplot()
 
 
