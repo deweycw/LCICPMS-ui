@@ -1,4 +1,6 @@
 from curses import meta
+import time
+from datetime import datetime
 from datetime import timedelta
 import sys 
 from PyQt5.QtCore import Qt
@@ -68,8 +70,9 @@ class LICPMSfunctions:
 		metalList = ['55Mn','56Fe','59Co','60Ni','63Cu','66Zn','111Cd', '208Pb']
 		metal_dict= {key: None for key in metalList}
 		corr_dict = {'correction': None}
-		metalConcs = {**time_holders,**corr_dict,**metal_dict}
-		peakAreas = {**time_holders,**corr_dict,**metal_dict}
+		tstamp = {'timestamp': None}
+		metalConcs = {**tstamp,**time_holders,**corr_dict,**metal_dict}
+		peakAreas = {**tstamp,**time_holders,**corr_dict,**metal_dict}
 
 		print(self._view.normAvIndium)
 		if self._view.normAvIndium > 0:
@@ -107,6 +110,11 @@ class LICPMSfunctions:
 
 				metalConcs['correction'] = '%.3f' % corr_factor 
 				peakAreas['correction'] = '%.3f' % corr_factor 
+
+				dateTimeObj = datetime.now()
+				timestampStr = dateTimeObj.strftime("%d-%b-%Y (%H:%M:%S)")
+				metalConcs['timestamp'] = timestampStr
+				peakAreas['timestamp'] = timestampStr
 
 				me_col_ind = self._data.columns.get_loc(metal)
 				summed_area = 0
@@ -198,7 +206,7 @@ class LICPMSfunctions:
 					fwriter = csv.DictWriter(csvfile, fieldnames=metalConcs.keys())
 					fwriter.writerow(metalConcs) 		
 			else:
-				csv_cols = ['filename','start_time', 'stop_time','correction'] + metalList
+				csv_cols = ['filename','tstamp','start_time', 'stop_time','correction'] + metalList
 				with open(filename, 'w', newline = '') as csvfile:
 					fwriter = csv.writer(csvfile, delimiter = ',', quotechar = '|')
 				#	if self._view.normAvIndium > 0:
@@ -218,7 +226,7 @@ class LICPMSfunctions:
 					fwriter = csv.DictWriter(csvfile, fieldnames=peakAreas.keys())
 					fwriter.writerow(peakAreas) 		
 			else:
-				csv_cols = ['filename','start_time', 'stop_time'] + metalList
+				csv_cols = ['filename','tstamp','start_time', 'stop_time', 'correction'] + metalList
 				with open(filename, 'w', newline = '') as csvfile:
 					fwriter = csv.writer(csvfile, delimiter = ',', quotechar = '|')
 					if self._view.normAvIndium > 0:
