@@ -242,7 +242,7 @@ class PyLCICPMSCtrl:
 
 		self._view.buttons['Load'].setEnabled(False)
 		self._view.buttons['Plot'].setEnabled(False)
-		self._view.buttons['Reset'].setEnabled(False)
+		self._view.buttons['Reset'].setEnabled(True)
 		self._view.integrateButtons['Calibrate'].setEnabled(False)
 		self._view.integrateButtons['Load Cal.'].setEnabled(False)
 		self._view.integrateButtons['Integrate'].setEnabled(False)
@@ -262,7 +262,9 @@ class PyLCICPMSCtrl:
 		self._view.baseSubtractBox.stateChanged.connect(self._baselineSubtraction)
 
 		self._view.buttons['Plot'].clicked.connect(self._makePlot)
-		self._view.buttons['Reset'].clicked.connect(self._clearForm)	
+		#self._view.buttons['Reset'].clicked.connect(self._clearForm)	
+
+		self._view.buttons['Reset'].clicked.connect(self._showPeriodicTable)	
 
 		self._view.integrateButtons['Calibrate'].clicked.connect(self._showCalWindow)
 		self._view.integrateButtons['Load Cal.'].clicked.connect(self._loadCalFile)
