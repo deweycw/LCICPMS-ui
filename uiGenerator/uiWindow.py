@@ -27,6 +27,7 @@ class PyLCICPMSUi(QMainWindow):
 		# Set some main window's properties
 		self.setWindowTitle('LC-ICP-MS Data Viewer')
 		self.setGeometry(100, 60,600, 600)
+
 		# Set the central widget
 		self.generalLayout = QVBoxLayout()
 		self.topLayout = QFormLayout()
@@ -45,6 +46,7 @@ class PyLCICPMSUi(QMainWindow):
 		self.singleOutputFile = False		
 		self.baseSubtract = False 
 
+		self._createPTDict()
 		self._createButtons()
 		self._createListbox()
 		self._createCheckBoxes()
@@ -214,19 +216,133 @@ class PyLCICPMSUi(QMainWindow):
 			cbox.setCheckState(Qt.CheckState.Unchecked)
 
 	def clickBox(self, cbox, state):
-		print(state)
-		print('lol')
-		print(Qt.CheckState.Checked)
-		if state == 2:#Qt.CheckState.Checked
+		if state == 2:
 			print('checked: ' + cbox.text())
 			if cbox.text() not in self.activeMetals:
 				self.activeMetals.append(cbox.text())
-			# print(self.activeMetals)
-				#return self.activeMetals
 		elif state == 0:
 			print('Unchecked: ' + cbox.text())
 			self.activeMetals.remove(cbox.text())
-			#print(self.activeMetals)
 		else:
-			print('Unchecked')
+			print('NO BOXES CHECKED!')
 
+	def _createPTDict(self):
+		self.periodicTableDict = {'1\nH': [0, 0, 'salmon',0],
+				'2\nHe': [0, 18, 'salmon',0],
+				'3\nLi': [1,0, 'salmon',0],
+				'4\nBe': [1, 1, 'salmon',0],
+				'11\nNa': [2, 0, 'salmon',0],
+				'12\nMg': [2, 1, 'salmon',0],
+				'19\nK': [3, 0, 'salmon',0],
+				'20\nCa': [3, 1, 'salmon',0],
+				'37\nRb': [4, 0, 'salmon',0],
+				'38\nSr': [4, 1, 'salmon',0],
+				'55\nCs': [5, 0, 'salmon',0],
+				'56\nBa': [5, 1, 'salmon',0],
+				'87\nFr': [6, 0, 'salmon',0],
+				'88\nRa': [6, 1, 'salmon',0],
+				'21\nSc': [3, 3, 'lightblue',0],
+				'22\nTi': [3, 4, 'lightblue',0],
+				'23\nV': [3, 5, 'lightblue',0],
+				'24\nCr': [3, 6, 'lightblue',0],
+				'25\nMn': [3, 7, 'lightblue',0],
+				'26\nFe': [3, 8, 'lightblue',0],
+				'27\nCo': [3, 9, 'lightblue',0],
+				'28\nNi': [3, 10, 'lightblue',0],
+				'29\nCu': [3, 11, 'lightblue',0],
+				'30\nZn': [3, 12, 'lightblue',0],
+				'39\nY': [4, 3, 'lightblue',0],  ##
+				'40\nZr': [4, 4, 'lightblue',0],
+				'41\nNb': [4, 5, 'lightblue',0],
+				'42\nMo': [4, 6, 'lightblue',0],
+				'43\nTc': [4, 7, 'lightblue',0],
+				'44\nRu': [4, 8, 'lightblue',0],
+				'45\nRh': [4, 9, 'lightblue',0],
+				'46\nPd': [4, 10, 'lightblue',0],
+				'47\nAg': [4, 11, 'lightblue',0],
+				'48\nCd': [4, 12, 'lightblue',0],
+				'71\nLu': [5, 3, 'lightblue',0],  ##
+				'72\nHf': [5, 4, 'lightblue',0],
+				'73\nTa': [5, 5, 'lightblue',0],
+				'74\nW': [5, 6, 'lightblue',0],
+				'75\nRe': [5, 7, 'lightblue',0],
+				'76\nOs': [5, 8, 'lightblue',0],
+				'77\nIr': [5, 9, 'lightblue',0],
+				'78\nPt': [5, 10, 'lightblue',0],
+				'79\nAu': [5, 11, 'lightblue',0],
+				'80\nHg': [5, 12, 'lightblue',0],
+				'103\nLr': [6, 3, 'lightblue',0],  ##
+				'104\nRf': [6, 4, 'lightblue',0],
+				'105\nDb': [6, 5, 'lightblue',0],
+				'106\nSg': [6,6, 'lightblue',0],
+				'107\nBh': [6, 7, 'lightblue',0],
+				'108\nHs': [6, 8, 'lightblue',0],
+				'109\nMt': [6, 9, 'lightblue',0],
+				'110\nDs': [6, 10, 'lightblue',0],
+				'111\nRg': [6, 11, 'lightblue',0],
+				'112\nCn': [6, 12, 'lightblue',0],
+				'5\nB': [1, 13, 'green',0],  ##
+				'6\nC': [1, 14, 'green',0],
+				'7\nN': [1, 15, 'green',0],
+				'8\nO': [1,16, 'green',0],
+				'9\nF': [1, 17, 'green',0],
+				'10\nNe': [1, 18, 'yellow',0],
+				'13\nAl': [2, 13, 'green',0],  ##
+				'14\nSi': [2, 14, 'green',0],
+				'15\nP': [2, 15, 'green',0],
+				'16\nS': [2, 16, 'green',0],
+				'17\nCl': [2, 17, 'green',0],
+				'18\nAr': [2, 18, 'yellow',0],
+				'31\nGa': [3, 13, 'green',0],  ##
+				'32\nGe': [3, 14, 'green',0],
+				'33\nAs': [3, 15, 'green',0],
+				'34\nSe': [3, 16, 'green',0],
+				'35\nBr': [3, 17, 'green',0],
+				'36\nKr': [3, 18, 'yellow',0],
+				'49\nIn': [4, 13, 'green',0],  ##
+				'50\nSn': [4, 14, 'green',0],
+				'51\nSb': [4, 15, 'green',0],
+				'52\nTe': [4, 16, 'green',0],
+				'53\nI': [4, 17, 'green',0],
+				'54\nXe': [4, 18, 'yellow',0],
+				'81\nTl': [5, 13, 'green',0],  ##
+				'82\nPb': [5, 14, 'green',0],
+				'83\nBi': [5, 15, 'green',0],
+				'84\nPo': [5, 16, 'green',0],
+				'85\nAt': [5, 17, 'green',0],
+				'86\nRn': [5, 18, 'yellow',0],
+				'113\nNh': [6, 13, 'green',0],  ##
+				'114\nFl': [6, 14, 'green',0],
+				'115\nMc': [6, 15, 'green',0],
+				'116\nLv': [6, 16, 'green',0],
+				'117\nTs': [6, 17, 'green',0],
+				'118\nOg': [6, 18, 'yellow',0],
+				'57\nLa': [7, 2, 'orange',0], ##
+				'58\nCe': [7, 3, 'orange',0],
+				'59\nPr': [7, 4, 'orange',0],  ##
+				'60\nNd': [7, 5, 'orange',0],
+				'61\nPm': [7, 6, 'orange',0],
+				'62\nSm': [7, 7, 'orange',0],
+				'63\nEu': [7, 8, 'orange',0],
+				'64\nGd': [7, 9, 'orange',0],
+				'65\nTb': [7, 10, 'orange',0],  ##
+				'66\nDy': [7, 11, 'orange',0],
+				'67\nHo': [7, 12, 'orange',0],
+				'68\nEr': [7, 13, 'orange',0],
+				'69\nTm': [7, 14, 'orange',0],
+				'70\nYb': [7, 15, 'orange',0],
+				'89\nAc': [8, 2, 'orange',0], ##
+				'90\nTh': [8, 3, 'orange',0],
+				'91\nPa': [8, 4, 'orange',0],  ##
+				'92\nU': [8, 5, 'orange',0],
+				'93\nNp': [8, 6, 'orange',0],
+				'94\nPu': [8, 7, 'orange',0],
+				'95\nAm': [8, 8, 'orange',0],
+				'96\nCm': [8, 9, 'orange',0],
+				'97\nBk': [8, 10, 'orange',0],  ##
+				'98\nCf': [8, 11, 'orange',0],
+				'99\nEs': [8, 12, 'orange',0],
+				'100\nFm': [8, 13, 'orange',0],
+				'101\nMd': [8, 14, 'orange',0],
+				'102\nNo': [8, 15, 'orange',0]
+			}

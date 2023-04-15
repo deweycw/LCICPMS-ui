@@ -16,7 +16,7 @@ import csv
 from .chroma import *
 from .pgChroma import *
 
-__version__ = '0.1'
+__version__ = '2.1'
 __author__ = 'Christian Dewey'
 
 '''

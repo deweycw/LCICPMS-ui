@@ -12,6 +12,10 @@ from uiGenerator.calWindowUI import *
 from uiGenerator.calCntrl import *
 from uiGenerator.calibrate import *
 
+from PTBuilder.PTView import *
+from PTBuilder.PTCtrl import *
+from PTBuilder.PTModel import *
+
 __version__ = '0.1'
 __author__ = 'Christian Dewey'
 
@@ -60,6 +64,13 @@ class PyLCICPMSCtrl:
 		self._view.integrateButtons['115In Correction'].setEnabled(True)
 		self._view.buttons['Load'].setEnabled(True)
 
+	def _showPeriodicTable(self):
+		''' opens periodic table '''
+		self._ptview = PTView(mainview=self._view)
+		ptmodel = PTModel(ptview=self._ptview, mainview = self._view)
+		PTCtrl(model=ptmodel, mainview=self._view, ptview= self._ptview,mainctrl=self)
+		self._ptview.show()
+
 	def _createListbox(self):
 		
 		self._view.listwidget.clear()
@@ -67,7 +78,7 @@ class PyLCICPMSCtrl:
 		test_dir = self._view.homeDir #'/Users/christiandewey/presentations/DOE-PI-22/day6/day6/'
 		i = 0
 		for name in sorted(os.listdir(test_dir)):
-			if '.csv' in name: 
+			if ('.csv' in name) and ('concentrations_' not in name) and ('peakareas' not in name): 
 				self._view.listwidget.insertItem(i, name)
 				i = i + 1
 		#self._view.listwidget.clicked.connect(self._view.clicked)
@@ -99,7 +110,6 @@ class PyLCICPMSCtrl:
 		#self._view.activeMetals.clear()
 		if self._view.activeMetals == []: 
 			for cbox in self._view.checkBoxes.values():
-				print('d')
 				cbox.setCheckState(Qt.CheckState.Checked)
 				#cbox.setChecked(Qt.Checked)
 		#self._model.importData()
