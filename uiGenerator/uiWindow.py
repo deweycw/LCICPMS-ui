@@ -1,6 +1,6 @@
 import sys 
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import * 
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import * 
 from pyqtgraph import PlotWidget, plot
 import pyqtgraph as pg
 from functools import partial
@@ -58,7 +58,7 @@ class PyLCICPMSUi(QMainWindow):
 	def _createResizeHandle(self):
 		handle = QSizeGrip(self)
 		#self.generalLayout.addWidget(handle)
-		self.generalLayout.addWidget(handle, 0, Qt.AlignBottom | Qt.AlignRight)
+		self.generalLayout.addWidget(handle, 0, Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignRight)
 	   # self.__corner = Qt.BottomRightCorner
 
 		self.resize(self.sizeHint())
@@ -83,7 +83,7 @@ class PyLCICPMSUi(QMainWindow):
 	def _createDirEntry(self):
 		self.DirEntry = QLineEdit()
 		self.DirEntry.setFixedHeight(35)
-		self.DirEntry.setAlignment(Qt.AlignRight)
+		self.DirEntry.setAlignment(Qt.AlignmentFlag.AlignRight) 
 		self.topLayout.addRow("Enter directory:", self.DirEntry)
 		self.topLayout.addWidget(self.DirEntry)
 
@@ -92,7 +92,7 @@ class PyLCICPMSUi(QMainWindow):
 		# Create the display widget
 		self.display = QLineEdit()
 		self.display.setFixedHeight(35)
-		self.display.setAlignment(Qt.AlignRight)
+		self.display.setAlignment(Qt.AlignmentFlag.AlignRight) 
 		self.display.setReadOnly(True)
 		self.generalLayout.addWidget(self.display)
 
@@ -152,7 +152,7 @@ class PyLCICPMSUi(QMainWindow):
 
 	def _showActiveCalibFile(self):
 		self.calib_label = QLabel()
-		self.calib_label.setAlignment(Qt.AlignRight)
+		self.calib_label.setAlignment(Qt.AlignmentFlag.AlignRight) 
 		label_text = 'No calibration'
 		self.calib_label.setText(label_text)
 		#label_text = 
@@ -211,16 +211,19 @@ class PyLCICPMSUi(QMainWindow):
 	def clearChecks(self):
 		"""Clear the display."""
 		for cbox in self.checkBoxes.values():
-			cbox.setCheckState(Qt.Unchecked)
+			cbox.setCheckState(Qt.CheckState.Unchecked)
 
 	def clickBox(self, cbox, state):
-		if state == Qt.Checked:
+		print(state)
+		print('lol')
+		print(Qt.CheckState.Checked)
+		if state == 2:#Qt.CheckState.Checked
 			print('checked: ' + cbox.text())
 			if cbox.text() not in self.activeMetals:
 				self.activeMetals.append(cbox.text())
 			# print(self.activeMetals)
 				#return self.activeMetals
-		elif state == Qt.Unchecked:
+		elif state == 0:
 			print('Unchecked: ' + cbox.text())
 			self.activeMetals.remove(cbox.text())
 			#print(self.activeMetals)

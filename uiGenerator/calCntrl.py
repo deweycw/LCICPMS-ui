@@ -1,6 +1,6 @@
 import sys 
-from PyQt5.QtCore import Qt, QTimer
-from PyQt5.QtWidgets import * 
+from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtWidgets import * 
 from pyqtgraph import PlotWidget, plot
 import pyqtgraph as pg
 from functools import partial
@@ -48,7 +48,7 @@ class CalCtrlFunctions:
 	def _selectDirectory(self):
 		dialog = QFileDialog()
 		dialog.setWindowTitle("Select Calibration Directory")
-		dialog.setViewMode(QFileDialog.Detail)
+		dialog.setViewMode(QFileDialog.ViewMode.Detail)
 		self._calview.calibrationDir = str(dialog.getExistingDirectory(self._calview,"Select Directory:")) + '/'
 		print(self._calview.calibrationDir)
 		self._createListbox()

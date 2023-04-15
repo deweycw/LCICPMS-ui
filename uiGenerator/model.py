@@ -3,8 +3,8 @@ import time
 from datetime import datetime
 from datetime import timedelta
 import sys 
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import * 
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import * 
 from pyqtgraph import PlotWidget, plot
 import pyqtgraph as pg
 from functools import partial
@@ -42,13 +42,13 @@ class LICPMSfunctions:
 		print(self._view.listwidget.currentItem().text())
 		if self._view.listwidget.currentItem() is not None:
 			self.fdir = self._view.homeDir + self._view.listwidget.currentItem().text()
-			self._data = pd.read_csv(self.fdir,sep=';',skiprows = 0, header = 1)
+			self._data = pd.read_csv(self.fdir,sep=';|,',skiprows = 0, header = 1,engine='python')
 
-	def importData_generic(self,fdir):
+	"""def importData_generic(self,fdir):
 		'''imports LCICPMS .csv file'''
-		data = pd.read_csv(fdir,sep=';',skiprows = 0, header = 1)
+		data = pd.read_csv(fdir,sep=';|,',skiprows = 0, header = 1)
 
-		return data 
+		return data """
 
 	def plotActiveMetalsMP(self):
 		'''plots active metals for selected file'''

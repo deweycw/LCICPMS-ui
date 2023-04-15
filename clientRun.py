@@ -1,6 +1,6 @@
 import sys 
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import * 
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import * 
 from pyqtgraph import PlotWidget, plot
 import pyqtgraph as pg
 from functools import partial
@@ -32,7 +32,7 @@ def main():
     PyLCICPMSCtrl(model=model, view=view,calwindow= calWindow)
     # Execute the main loop
     if (sys.flags.interactive != 1) or not hasattr(Qt, 'PYQT_VERSION'):
-        pycalc.exec_()
+        pycalc.exec()
     #sys.exit(pycalc.exec_())
 
 if __name__ == '__main__':

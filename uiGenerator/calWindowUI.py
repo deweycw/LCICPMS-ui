@@ -1,6 +1,6 @@
 import sys 
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import * 
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import * 
 from pyqtgraph import PlotWidget, plot
 import pyqtgraph as pg
 from functools import partial
@@ -89,7 +89,7 @@ class Calibration(QWidget):
 		self.stdConcEntry = QLineEdit()
 		self.stdConcEntry.setFixedHeight(35)
 		self.stdConcEntry.setFixedWidth(100)
-		self.stdConcEntry.setAlignment(Qt.AlignRight)
+		self.stdConcEntry.setAlignment(Qt.AlignmentFlag.AlignRight) 
 		#self.standardsLayout.addRow("Enter standard concentration:", self.stdConcEntry)
 		self.stdlabel = QLabel()
 		stdlabel = 'Standard conc. (ppb):'
@@ -112,7 +112,7 @@ class Calibration(QWidget):
 		# Create the display widget
 		self.display = QLineEdit()
 		self.display.setFixedHeight(35)
-		self.display.setAlignment(Qt.AlignRight)
+		self.display.setAlignment(Qt.AlignmentFlag.AlignRight) 
 		self.display.setReadOnly(True)
 		self.generalLayout.addWidget(self.display)
 

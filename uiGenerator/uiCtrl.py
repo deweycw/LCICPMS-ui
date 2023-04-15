@@ -1,6 +1,6 @@
 import sys 
-from PyQt5.QtCore import Qt, QTimer
-from PyQt5.QtWidgets import * 
+from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtWidgets import * 
 from pyqtgraph import PlotWidget, plot
 import pyqtgraph as pg
 from functools import partial
@@ -51,7 +51,7 @@ class PyLCICPMSCtrl:
 		self._view.listwidget.clear()
 		dialog = QFileDialog()
 		dialog.setWindowTitle("Select LC-ICPMS Directory")
-		dialog.setViewMode(QFileDialog.Detail)
+		dialog.setViewMode(QFileDialog.ViewMode.Detail)
 		self._view.homeDir = str(dialog.getExistingDirectory(self._view,"Select Directory:")) + '/'
 		
 		self._createListbox()
@@ -99,7 +99,9 @@ class PyLCICPMSCtrl:
 		#self._view.activeMetals.clear()
 		if self._view.activeMetals == []: 
 			for cbox in self._view.checkBoxes.values():
-				cbox.setChecked(True)
+				print('d')
+				cbox.setCheckState(Qt.CheckState.Checked)
+				#cbox.setChecked(Qt.Checked)
 		#self._model.importData()
 		#self._view.buttons['Plot'].setEnabled(True)
 		if self._view.listwidget.currentItem() is not None:
@@ -204,7 +206,7 @@ class PyLCICPMSCtrl:
 		''' opens window to select normalization file for 115In correction; saves average 115In signal from norm file'''
 		dialog = QFileDialog()
 		dialog.setWindowTitle("Select Normalization File")
-		dialog.setViewMode(QFileDialog.Detail)
+		dialog.setViewMode(QFileDialog.ViewMode.Detail)
 		filepath = dialog.getOpenFileName(self._view,"Openfile")[0]
 		normData = self._model.importData_generic(fdir = filepath )
 		self._view.normAvIndium = np.average(normData['115In'])
