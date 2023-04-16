@@ -70,7 +70,8 @@ class PTCtrl:
 			isotopes = self._mainview.isotopes[split_el]
 
 			for i in isotopes:
-				self._mainview.activeMetals.append(i)
+				if i in self._mainview._metals_in_file:
+					self._mainview.activeMetals.append(i)
 			
 
 		elif isActive == 1:
