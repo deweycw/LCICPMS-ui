@@ -33,52 +33,39 @@ class PTCtrl:
 		self._view = ptview
 		self._mainview = mainview
 		self._mainctrl = mainctrl
-		self._activeElementList = self._mainview.activeMetals
 		
 		# Connect signals and slots
 		self._connectSignals()
 
 	def _saveElementList(self):
-		self._mainview.activeMetals = self._activeElementList
-
-		#QCoreApplication.instance().quit()
-		'''self._mainview._createAssignBoxes()
-
-		if self._mainview.firstSave is True:
-		
-			self._mainview._createAssignForm_active()
-
-			self._mainview._plotParams()
-
-			self._mainview.firstSave = False
-		
-		else:
-			
-			self._mainview._updateElementList()
-
-			self._mainview._updateICPMS_elementList()'''
-			
+		self._model.plotActiveMetals()
 		self._view.close()
-		
 
-	def _resetPeriodicTable(self):
+	def _clearPeriodicTable(self):
 		self._mainview.activeMetals = []
 		for element, btn in self._view.periodicTable.items():
 			col = self._mainview.periodicTableDict[element][2]
 			self._view.periodicTable[element].setStyleSheet('background-color : '+ col)
 			self._mainview.periodicTableDict[element][3] = 0
 
+	def _resetPeriodicTable(self):
+		self._mainview.activeMetals = self._mainview._metals_in_file.copy()
+		print(self._mainview._metals_in_file)
+		for element in self._mainview.activeMetals:
+			buttonkey = self._mainview.ptDictEls[self._mainview.rev[element]]
+			self._view.periodicTable[buttonkey].setStyleSheet('background-color : yellow')
+			self._mainview.periodicTableDict[buttonkey][3] = 1
+
 	def _alterElementList(self, element):
 		
 		split_el = element.split('\n')[1]
 
 		isActive = self._mainview.periodicTableDict[element][3]
-
+		print(self._mainview._metals_in_file)
 		if isActive == 0:
 			
 			self._mainview.periodicTableDict[element][3] = 1
-			#self._view._elementLabels.append(element)
-			self._view.periodicTable[element].setStyleSheet('background-color : lightgray')
+			self._view.periodicTable[element].setStyleSheet('background-color : yellow')
 			
 			isotopes = self._mainview.isotopes[split_el]
 
@@ -89,14 +76,12 @@ class PTCtrl:
 		elif isActive == 1:
 
 			self._mainview.periodicTableDict[element][3] = 0
-			#self._view._elementLabels.remove(element)
 			col = self._mainview.periodicTableDict[element][2]
-			self._view.periodicTable[element].setStyleSheet('background-color : ' + col)
+			self._view.periodicTable[element].setStyleSheet('background-color : '+ col)
 			isotopes = self._mainview.isotopes[split_el]
 			for i in isotopes:
-				self._mainview.activeMetals.remove(i)
-		
-		print(self._mainview.activeMetals)
+				if i in self._mainview.activeMetals:
+					self._mainview.activeMetals.remove(i)
 
 
 	def _connectSignals(self):
@@ -113,6 +98,7 @@ class PTCtrl:
 		for element, btn in self._view.periodicTable.items():
 			self._view.periodicTable[element].clicked.connect(partial(self._alterElementList, element))
 
-		self._view.buttons['Reset'].clicked.connect(self._resetPeriodicTable)
+		self._view.buttons['Clear'].clicked.connect(self._clearPeriodicTable)
 		self._view.buttons['Save'].clicked.connect(self._saveElementList)
+		self._view.buttons['Select All'].clicked.connect(self._resetPeriodicTable)
 

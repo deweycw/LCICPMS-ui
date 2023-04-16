@@ -19,8 +19,6 @@ class plotChroma:
 
 	def _plotChroma(self):
 		colors = sns.color_palette(n_colors = len(self.metalList),as_cmap = True)
-		print(colors)
-		print(len(colors))
 		c_keys = self.metalList
 		color_dict = {c_keys[i]: None for i in range(len(c_keys))}
 

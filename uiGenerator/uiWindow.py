@@ -35,21 +35,19 @@ class PyLCICPMSUi(QMainWindow):
 		self.setCentralWidget(self._centralWidget)
 		self._centralWidget.setLayout(self.generalLayout)
 
-		self.calCurves = {}
-		self.masses = {'55Mn': 55, '56Fe': 56, '59Co': 59, '60Ni': 60, '63Cu': 63, '66Zn': 66, '111Cd': 111, '127I': 127, '208Pb': 208}
-		
+		self.calCurves = {}		
 		self.filepath = ''
 		self.normAvIndium = -999.99
 		self.homeDir = '' #/Users/christiandewey/'# '/Users/christiandewey/presentations/DOE-PI-22/day6/day6/'
 		self.activeMetals = []
-		self.metalOptions = ['55Mn','56Fe','59Co','60Ni','63Cu','66Zn','111Cd','115In', '208Pb']
 		self.singleOutputFile = False		
 		self.baseSubtract = False 
+		self.active_metal_isotopes = []
+		self._metals_in_file =[]
 
 		self._createPTDict()
 		self._createButtons()
 		self._createListbox()
-		self._createCheckBoxes()
 		self._createDisplay()
 		self._createPlot()
 		self._createIntegrateCheckBoxes()
@@ -59,20 +57,9 @@ class PyLCICPMSUi(QMainWindow):
 
 	def _createResizeHandle(self):
 		handle = QSizeGrip(self)
-		#self.generalLayout.addWidget(handle)
 		self.generalLayout.addWidget(handle, 0, Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignRight)
-	   # self.__corner = Qt.BottomRightCorner
-
 		self.resize(self.sizeHint())
 
-	   # self.__updatePos()
-	'''
-	def _selectDirectory(self):
-		dialog = QFileDialog()
-		dialog.setWindowTitle("Select LC-ICPMS Directory")
-		dialog.setViewMode(QFileDialog.Detail)      
-		self.homeDir = str(dialog.getExistingDirectory(self,"Select Directory:")) + '/'
-	'''
 	def _createPlot(self):
 		self.plotSpace = pg.PlotWidget()
 		self.plotSpace.setBackground('w')
@@ -91,7 +78,6 @@ class PyLCICPMSUi(QMainWindow):
 
 	def _createDisplay(self):
 		'''Create the display'''
-		# Create the display widget
 		self.display = QLineEdit()
 		self.display.setFixedHeight(35)
 		self.display.setAlignment(Qt.AlignmentFlag.AlignRight) 
@@ -106,12 +92,10 @@ class PyLCICPMSUi(QMainWindow):
 			cbox = QCheckBox(m)
 			self.checkBoxes[m] = cbox
 			optionsLayout.addWidget(cbox)
-	   # optionwidget.stateChanged.connect(self.clickBox)
 		self.generalLayout.addLayout(optionsLayout)
 
 	def _createIntegrateCheckBoxes(self):
 		# Add some checkboxes to the layout  
-		#self.integrateBox= []      
 		self.integrateLayout = QHBoxLayout()
 		checkboxLayout =QVBoxLayout()
 		self.intbox = QCheckBox('Select integration range?')
@@ -127,9 +111,7 @@ class PyLCICPMSUi(QMainWindow):
 		"""Create the integrate buttons."""
 		self.integrateButtons = {}
 		self.intButtonLayout = QGridLayout()
-		# Button text | position on the QGridLayout
-		intbuttons = {'Integrate': (0,0),'Load Cal.': (0,2),'Calibrate': (0,3), '115In Correction': (0,1), 'Reset Integration': (1,0)}
-		# Create the buttons and add them to the grid layout
+		intbuttons = {'Integrate': (0,0),'Load Cal.': (0,2),'Reset': (0,3), '115In Correction': (0,1)}
 		for btnText, pos in intbuttons.items():
 			self.integrateButtons[btnText] = QPushButton(btnText)			
 			if 'Reset' not in btnText:
@@ -137,8 +119,6 @@ class PyLCICPMSUi(QMainWindow):
 			else:
 				self.integrateButtons[btnText].setFixedSize(130, 40)
 			self.intButtonLayout.addWidget(self.integrateButtons[btnText], pos[0],pos[1])
-
-			
 			
 		self.integrateLayout.addLayout(self.intButtonLayout)
 		# Add buttonsLayout to the general layout
@@ -159,44 +139,28 @@ class PyLCICPMSUi(QMainWindow):
 		self.calib_label.setText(label_text)
 		#label_text = 
 		self.intButtonLayout.addWidget(self.calib_label,1,3)	
-	'''
-	def _createListbox(self):
-	
-		listBoxLayout = QGridLayout()
-		self.listwidget = QListWidget()
 
-		test_dir = self.homeDir #'/Users/christiandewey/presentations/DOE-PI-22/day6/day6/'
-		i = 0
-		for name in os.listdir(test_dir):
-			if '.csv' in name: 
-				self.listwidget.insertItem(i, name)
-				i = i + 1
-
-		self.listwidget.clicked.connect(self.clicked)
-		listBoxLayout.addWidget(self.listwidget)
-		self.listwidget.setMaximumHeight(250)
-		self.generalLayout.addLayout(listBoxLayout)
-	'''
 	def _createButtons(self):
 		"""Create the buttons."""
 		self.buttons = {}
 		buttonsLayout = QGridLayout()
 		# Button text | position on the QGridLayout
-		buttons = {'Load': (0, 0),
-				   'Plot': (0, 1),
-				   'Reset': (0,2),
-				   'Directory': (0, 3)
+		buttons = {'Directory': (0, 0),
+	     		   'Calibrate': (0,1),
+				   'Select Elements': (0,3)
 				  }
 		# Create the buttons and add them to the grid layout
 		for btnText, pos in buttons.items():
 			self.buttons[btnText] = QPushButton(btnText)
-			self.buttons[btnText].setFixedSize(80, 40)
+			if btnText == 'Directory':
+				self.buttons[btnText].setFixedSize(80, 40)
+			else:
+				self.buttons[btnText].setFixedSize(110, 40)
 			buttonsLayout.addWidget(self.buttons[btnText], pos[0], pos[1])
 		# Add buttonsLayout to the general layout
 		self.generalLayout.addLayout(buttonsLayout)
 	
 	def clicked(self):
-		print('hh')
 		item = self.listwidget.currentItem()
 		print('\nfile: ' + item.text())
 		return self.listwidget.currentItem()
@@ -357,12 +321,12 @@ class PyLCICPMSUi(QMainWindow):
 				'Ca': ['40Ca', '42Ca','43Ca','44Ca', '48Ca'],
 				'Rb': ['85Rb', '87Rb'],
 				'Sr': ['84Sr','86Sr','87Sr','88Sr'],
-				'Cs': [5, 0, 'salmon',0],
+				'Cs': ['133Cs'],
 				'Ba': ['132Ba','134Ba','135Ba','136Ba','137Ba','138Ba'],
-				'Fr': [6, 0, 'salmon',0],
-				'Ra': [6, 1, 'salmon',0],
-				'Sc': [3, 3, 'lightblue',0],
-				'Ti': [3, 4, 'lightblue',0],
+				'Fr': ['223Fr'],
+				'Ra': ['223Ra' ,'224Ra','226Ra','228Ra'],
+				'Sc': ['45Sc'],
+				'Ti': ['46Ti','47Ti','48Ti','49Ti','50Ti'],
 				'V': ['50V','51V'],
 				'Cr': ['50Cr','51Cr','53Cr','54Cr'],
 				'Mn': ['55Mn'],
@@ -371,36 +335,36 @@ class PyLCICPMSUi(QMainWindow):
 				'Ni': ['58Ni','60Ni','61Ni','62Ni','64Ni'],
 				'Cu': ['63Cu','65Cu'],
 				'Zn': ['64Zn','66Zn','67Zn','68Zn','70Zn'],
-				'Y': [4, 3, 'lightblue',0],  ##
-				'Zr': [4, 4, 'lightblue',0],
-				'Nb': [4, 5, 'lightblue',0],
-				'Mo': [4, 6, 'lightblue',0],
-				'Tc': [4, 7, 'lightblue',0],
-				'Ru': [4, 8, 'lightblue',0],
-				'Rh': [4, 9, 'lightblue',0],
-				'Pd': [4, 10, 'lightblue',0],
-				'Ag': [4, 11, 'lightblue',0],
+				'Y': ['89Y'], 
+				'Zr': ['90Zr','91Zr','92Zr','94Zr','96Zr'],
+				'Nb': ['93Nb'],
+				'Mo': ['92Mo','94Mo','95Mo','96Mo','97Mo','98Mo','100Mo'],
+				'Tc': ['97Tc','98Tc','99Tc'],
+				'Ru': ['96Ru','98Ru','99Ru','100Ru','101Ru','102Ru','104Ru'],
+				'Rh': ['103Rh'],
+				'Pd': ['102Pd','104Pd','108Pd','110Pd'],
+				'Ag': ['107Ag','109Ag'],
 				'Cd': ['106Cd','108Cd','110Cd','111Cd','112Cd','113Cd','114Cd','116Cd'],
-				'Lu': [5, 3, 'lightblue',0],  ##
-				'Hf': [5, 4, 'lightblue',0],
-				'Ta': [5, 5, 'lightblue',0],
-				'W': [5, 6, 'lightblue',0],
-				'Re': [5, 7, 'lightblue',0],
-				'Os': [5, 8, 'lightblue',0],
-				'Ir': [5, 9, 'lightblue',0],
-				'Pt': [5, 10, 'lightblue',0],
-				'Au': [5, 11, 'lightblue',0],
-				'Hg': [5, 12, 'lightblue',0],
-				'Lr': [6, 3, 'lightblue',0],  ##
-				'Rf': [6, 4, 'lightblue',0],
-				'Db': [6, 5, 'lightblue',0],
-				'Sg': [6,6, 'lightblue',0],
-				'Bh': [6, 7, 'lightblue',0],
-				'Hs': [6, 8, 'lightblue',0],
-				'Mt': [6, 9, 'lightblue',0],
-				'Ds': [6, 10, 'lightblue',0],
-				'Rg': [6, 11, 'lightblue',0],
-				'Cn': [6, 12, 'lightblue',0],
+				'Lu': ['175Lu','176Lu'],  ##
+				'Hf': ['174Hf','176Hf','177Hf','178Hf','179Hf','180Hf'],
+				'Ta': ['180Ta','181Ta'],
+				'W': ['180W','182W','183W','184W','186W'],
+				'Re': ['185Re', '187Re'],
+				'Os': ['184Os','186Os','187Os','188Os','189Os','190Os','192Os'],
+				'Ir': ['191Ir','193Ir'],
+				'Pt': ['190Pt','192Pt','194Pt','195Pt','196Pt','198Pt'],
+				'Au': ['197Au'],
+				'Hg': ['196Hg','198Hg','199Hg','200Hg','201Hg','202Hg','204Hg'],
+				'Lr': ['262Lr'],  ##
+				'Rf': ['267Rf'],
+				'Db': ['268Db'],
+				'Sg': ['271Sg'],
+				'Bh': ['272Bh'],
+				'Hs': ['270Hs'],
+				'Mt': ['276Mt'],
+				'Ds': ['281Ds'],
+				'Rg': ['280Rg'],
+				'Cn': ['285Cn'],
 				'B': ['10B', '11B'],  ##
 				'C': ['12C', '13C', '14C'],
 				'N': ['14N', '15N'],
@@ -413,56 +377,65 @@ class PyLCICPMSUi(QMainWindow):
 				'S': ['32S', '33S', '34S', '36S'],
 				'Cl': ['35Cl', '37Cl'],
 				'Ar': ['36Ar', '38Ar', '40Ar'],
-				'Ga': [3, 13, 'green',0],  ##
-				'Ge': [3, 14, 'green',0],
-				'As': [3, 15, 'green',0],
-				'Se': [3, 16, 'green',0],
-				'Br': [3, 17, 'green',0],
-				'Kr': [3, 18, 'yellow',0],
+				'Ga': ['69Ga','71Ga'],  ##
+				'Ge': ['70Ge','72Ge','73Ge','74Ge','76Ge'],
+				'As': ['75As'],
+				'Se': ['80Se','82Se'],
+				'Br': ['79Br','81Br'],
+				'Kr': ['78Kr','80Kr','82Kr','83Kr','84Kr','86Kr'],
 				'In': ['113In', '115In'],  ##
-				'Sn': [4, 14, 'green',0],
-				'Sb': [4, 15, 'green',0],
-				'Te': [4, 16, 'green',0],
-				'I': [4, 17, 'green',0],
-				'Xe': [4, 18, 'yellow',0],
-				'Tl': [5, 13, 'green',0],  ##
+				'Sn': ['112Sn','114Sn','115Sn','116Sn','117Sn','118Sn','119Sn','120Sn','122Sn','124Sn'],
+				'Sb': ['121Sb','123Sb'],
+				'Te': ['120Te','122Te','123Te','124Te','125Te','126Te','128Te','130Te'],
+				'I': ['127I'],
+				'Xe': ['124Xe','126Xe','128Xe','129Xe','130Xe','131Xe','132Xe','134Xe','136Xe'],
+				'Tl': ['203Tl','205Tl'],  ##
 				'Pb': ['204Pb','206Pb','207Pb','208Pb'],
-				'Bi': [5, 15, 'green',0],
-				'Po': [5, 16, 'green',0],
-				'At': [5, 17, 'green',0],
-				'Rn': [5, 18, 'yellow',0],
-				'Nh': [6, 13, 'green',0],  ##
-				'Fl': [6, 14, 'green',0],
-				'Mc': [6, 15, 'green',0],
+				'Bi': ['209Bi'],
+				'Po': ['209Po','210Po'],
+				'At': ['210At','211At'],
+				'Rn': ['211Rn','220Rn'],
+				'Nh': ['284Nh'],  ##
+				'Fl': ['289Fl'],
+				'Mc': ['288Mc'],
 				'U': ['233U','234U','235U','236U','238U'],
-				'Np': [8, 6, 'orange',0],
-				'Pu': [8, 7, 'orange',0],
-				'Am': [8, 8, 'orange',0],
-				'Cm': [8, 9, 'orange',0],
-				'Bk': [8, 10, 'orange',0],  ##
-				'Cf': [8, 11, 'orange',0],
-				'Es': [8, 12, 'orange',0],
-				'Fm': [8, 13, 'orange',0],
-				'Md': [8, 14, 'orange',0],
-				'No': [8, 15, 'orange',0],
-				'Lv': [6, 16, 'green',0],
-				'Ts': [6, 17, 'green',0],
-				'Og': [6, 18, 'yellow',0],
-				'La': [7, 2, 'orange',0], ##
-				'Ce': [7, 3, 'orange',0],
-				'Pr': [7, 4, 'orange',0],  ##
-				'Nd': [7, 5, 'orange',0],
-				'Pm': [7, 6, 'orange',0],
-				'Sm': [7, 7, 'orange',0],
-				'Eu': [7, 8, 'orange',0],
-				'Gd': [7, 9, 'orange',0],
-				'Tb': [7, 10, 'orange',0],  ##
-				'Dy': [7, 11, 'orange',0],
-				'Ho': [7, 12, 'orange',0],
-				'Er': [7, 13, 'orange',0],
-				'Tm': [7, 14, 'orange',0],
-				'Yb': [7, 15, 'orange',0],
-				'Ac': [8, 2, 'orange',0], ##
-				'Th': [8, 3, 'orange',0],
-				'Pa': [8, 4, 'orange',0]
+				'Np': ['236Np','237Np'],
+				'Pu': ['238Pu','239Pu','240Pu','241Pu','242Pu','244Pu'],
+				'Am': ['241Am','243Am'],
+				'Cm': ['243Cm','244Cm','245Cm','246Cm','247Cm','248Cm'],
+				'Bk': ['247Bk','249Bk'],  ##
+				'Cf': ['249Cf','250Cf','251Cf','252Cf'],
+				'Es': ['252Es'],
+				'Fm': ['257Fm'],
+				'Md': ['258Md'],
+				'No': ['259No'],
+				'Lv': ['293Lv'],
+				'Ts': ['292Ts'],
+				'Og': ['294Og'],
+				'La': ['138La','139La'], ##
+				'Ce': ['136Ce','138Ce','140Ce','142Ce'],
+				'Pr': ['141Pr'],  ##
+				'Nd': ['142Nd','143Nd','144Nd','145Nd','146Nd','148Nd','150Nd'],
+				'Pm': ['145Pm','147Pm'],
+				'Sm': ['144Sm','147Sm','148Sm','149Sm','150Sm','152Sm','154Sm'],
+				'Eu': ['151Eu','153Eu'],
+				'Gd': ['152Gd','154Gd','155Gd','156Gd','157Gd','158Gd','160Gd'],
+				'Tb': ['159Tb'],  ##
+				'Dy': ['156Dy','158Dy','160Dy','161Dy','162Dy','163Dy','164Dy'],
+				'Ho': ['165Ho'],
+				'Er': ['162Er','164Er','166Er','167Er','168Er','170Er'],
+				'Tm': ['169Tm'],
+				'Yb': ['168Yb','170Yb','171Yb','172Yb','173Yb','174Yb','176Yb'],
+				'Ac': ['227Ac'], ##
+				'Th': ['230Th','232Th'],
+				'Pa': ['231Pa']
 		}
+
+		self.rev = {}
+		for k,v in zip(self.isotopes.keys(), self.isotopes.values()):
+			for vi in v:
+				self.rev[vi] = k
+
+		self.ptDictEls = {}
+		for k,el in zip(self.periodicTableDict.keys(), self.isotopes.keys()):
+			self.ptDictEls[el] = k

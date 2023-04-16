@@ -35,12 +35,7 @@ class PyLCICPMSCtrl:
 		self._model = model
 		self._view = view
 		self._calWindow = calwindow
-		#self._data = None
 		self._intRange = []		
-		#self._intPointX = 0
-		#self._intPointY = 0 
-		#self._intX = []
-		#self._intY = []
 		self.n_clicks = 0
 		self._n = 0
 		self._xMin = 0
@@ -59,15 +54,14 @@ class PyLCICPMSCtrl:
 		self._view.homeDir = str(dialog.getExistingDirectory(self._view,"Select Directory:")) + '/'
 		
 		self._createListbox()
-		self._view.integrateButtons['Calibrate'].setEnabled(True)
+		self._view.buttons['Calibrate'].setEnabled(True)
 		self._view.integrateButtons['Load Cal.'].setEnabled(True)
 		self._view.integrateButtons['115In Correction'].setEnabled(True)
-		self._view.buttons['Load'].setEnabled(True)
 
 	def _showPeriodicTable(self):
 		''' opens periodic table '''
 		self._ptview = PTView(mainview=self._view)
-		ptmodel = PTModel(ptview=self._ptview, mainview = self._view)
+		ptmodel = PTModel(ptview=self._ptview, mainview = self._view, maincontrol = self)
 		PTCtrl(model=ptmodel, mainview=self._view, ptview= self._ptview,mainctrl=self)
 		self._ptview.show()
 
@@ -81,10 +75,6 @@ class PyLCICPMSCtrl:
 			if ('.csv' in name) and ('concentrations_' not in name) and ('peakareas' not in name): 
 				self._view.listwidget.insertItem(i, name)
 				i = i + 1
-		#self._view.listwidget.clicked.connect(self._view.clicked)
-		#listBoxLayout.addWidget(self.listwidget)
-		#self.listwidget.setMaximumHeight(250)
-		#self.generalLayout.addLayout(listBoxLayout)
 
 	def _buildExpression(self, sub_exp):
 		"""Build expression."""
@@ -94,33 +84,21 @@ class PyLCICPMSCtrl:
 	def _clearForm(self):
 		''' clears check boxes and nulls data '''
 		self._view.clearChecks()
-		#self._data = None
-		self._view.buttons['Plot'].setEnabled(False)
+		self._view.buttons['Select Elements'].setEnabled(False)
 		self._view.integrateButtons['Integrate'].setEnabled(False)
 		self._view.integrateButtons['Integrate'].setStyleSheet("background-color: light gray")
 
 		self._intRange = []
 		self._view.plotSpace.clear()
 		self._n = 0
-		#self._view.integrateButtons['115In Correction'].setEnabled(True)
-		#self._view.normAvIndium = -999.99
 
 	def _importAndActivatePlotting(self):
 		'''activates plotting function after data imported'''
-		#self._view.activeMetals.clear()
-		if self._view.activeMetals == []: 
-			for cbox in self._view.checkBoxes.values():
-				cbox.setCheckState(Qt.CheckState.Checked)
-				#cbox.setChecked(Qt.Checked)
-		#self._model.importData()
-		#self._view.buttons['Plot'].setEnabled(True)
 		if self._view.listwidget.currentItem() is not None:
 			self._view.setDisplayText(self._view.listwidget.currentItem().text())
 			self._model.importData()
-			self._view.buttons['Plot'].setEnabled(True)
-		#self._view.activeMetals.append('115In')
 			self._makePlot()
-			self._view.buttons['Reset'].setEnabled(True)
+			self._view.buttons['Select Elements'].setEnabled(True)
 			self._view.listwidget.setFocus()
 
 	def _mouseover(self, pos):
@@ -169,7 +147,6 @@ class PyLCICPMSCtrl:
 	def _baselineSubtraction(self,checked):
 		'''select integration range'''
 		if self._view.baseSubtractBox.isChecked() == True:
-			#print('base subtract box')
 			self._view.baseSubtract = True
 		else:
 			self._view.baseSubtract = False
@@ -178,7 +155,6 @@ class PyLCICPMSCtrl:
 		''' call integration function'''
 		if len(self._view.calCurves) > 0:
 			self._model.integrate(self._intRange)
-			#self._intRange = []
 			self._view.integrateButtons['Integrate'].setStyleSheet("background-color: light gray")
 		else:
 			self._view.integrateButtons['Load Cal.'].setStyleSheet("background-color: yellow")
@@ -188,10 +164,7 @@ class PyLCICPMSCtrl:
 		self._model.plotActiveMetals()
 	
 	def _showCalWindow(self):
-		''' opens calibration window '''
-		#self.dialog = Calibration(view = self._view)
-		
-		
+		''' opens calibration window '''		
 		self.calWindow = Calibration(view = self._view)
 		calmodel = CalibrateFunctions(calview= self.calWindow, mainview = self._view)
 		CalCtrlFunctions(model=calmodel, mainview = self._view,view= self.calWindow)
@@ -232,7 +205,7 @@ class PyLCICPMSCtrl:
 	def _connectSignals(self):
 		"""Connect signals and slots."""
 		for btnText, btn in self._view.buttons.items():
-			if btnText  in {'Load'}:
+			if btnText  in {'Directory'}:
 				if self._view.listwidget.currentItem() is None:
 					text = ''
 				else:
@@ -240,10 +213,10 @@ class PyLCICPMSCtrl:
 		
 				btn.clicked.connect(partial(self._buildExpression, text))
 
-		self._view.buttons['Load'].setEnabled(False)
-		self._view.buttons['Plot'].setEnabled(False)
-		self._view.buttons['Reset'].setEnabled(True)
-		self._view.integrateButtons['Calibrate'].setEnabled(False)
+		self._view.buttons['Select Elements'].setEnabled(False)
+		self._view.buttons['Calibrate'].setEnabled(False)
+
+		self._view.integrateButtons['Reset'].setEnabled(False)
 		self._view.integrateButtons['Load Cal.'].setEnabled(False)
 		self._view.integrateButtons['Integrate'].setEnabled(False)
 		self._view.integrateButtons['115In Correction'].setEnabled(False)
@@ -251,26 +224,19 @@ class PyLCICPMSCtrl:
 		self._view.listwidget.setCurrentItem(None)
 		self._view.buttons['Directory'].clicked.connect(self._selectDirectory)
 		
-		self._view.buttons['Load'].clicked.connect(self._importAndActivatePlotting)
 		self._view.listwidget.currentItemChanged.connect(self._importAndActivatePlotting)
-
-		for cbox in self._view.checkBoxes.values():
-			cbox.stateChanged.connect(partial( self._view.clickBox, cbox) )
 
 		self._view.intbox.stateChanged.connect(self._selectIntRange)
 		self._view.oneFileBox.stateChanged.connect(self._selectOneFile)
 		self._view.baseSubtractBox.stateChanged.connect(self._baselineSubtraction)
 
-		self._view.buttons['Plot'].clicked.connect(self._makePlot)
-		#self._view.buttons['Reset'].clicked.connect(self._clearForm)	
+		self._view.buttons['Select Elements'].clicked.connect(self._showPeriodicTable)	
+		self._view.buttons['Calibrate'].clicked.connect(self._showCalWindow)
 
-		self._view.buttons['Reset'].clicked.connect(self._showPeriodicTable)	
-
-		self._view.integrateButtons['Calibrate'].clicked.connect(self._showCalWindow)
 		self._view.integrateButtons['Load Cal.'].clicked.connect(self._loadCalFile)
 		self._view.integrateButtons['Integrate'].clicked.connect(self._Integrate)
 		self._view.integrateButtons['115In Correction'].clicked.connect(self._selectInNormFile)
-		self._view.integrateButtons['Reset Integration'].clicked.connect(self._resetIntegrate)
+		self._view.integrateButtons['Reset'].clicked.connect(self._resetIntegrate)
 		
 
 
