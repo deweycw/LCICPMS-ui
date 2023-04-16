@@ -36,6 +36,7 @@ class LICPMSfunctions:
 		self.intColors = sns.color_palette(n_colors = 6, as_cmap = True)
 		self.minline = None
 		self.maxline = None
+		self.active_metal_isotopes = []
 		
 	def importData(self):
 		'''imports LCICPMS .csv file'''
@@ -44,20 +45,27 @@ class LICPMSfunctions:
 			self.fdir = self._view.homeDir + self._view.listwidget.currentItem().text()
 			self._data = pd.read_csv(self.fdir,sep=';|,',skiprows = 0, header = 1,engine='python')
 
-	"""def importData_generic(self,fdir):
-		'''imports LCICPMS .csv file'''
-		data = pd.read_csv(fdir,sep=';|,',skiprows = 0, header = 1)
+		self.active_metal_isotopes = []
+		for c in self._data.columns:
+			if 'Time' in c:
+				ic = c.split(' ')[1]
+				self.active_metal_isotopes.append(ic)
 
-		return data """
 
-	def plotActiveMetalsMP(self):
-		'''plots active metals for selected file'''
+		self._view.activeMetals = self.active_metal_isotopes
+
+	'''def plotActiveMetalsMP(self):
+		#plots active metals for selected file
 		activeMetalsPlot = ICPMS_Data_Class(self._data,self._view.activeMetals)
-		activeMetalsPlot.chroma().show()
+		activeMetalsPlot.chroma().show()'''
 	
 	def plotActiveMetals(self):
 		'''plots active metals for selected file'''
-		self._view.chroma = plotChroma(self._view, self._view.metalOptions, self._data, self._view.activeMetals)._plotChroma()
+		for m in self._view.activeMetals:
+			if m not in self.active_metal_isotopes:
+				self._view.activeMetals.remove(m)
+				print('%s not in data file ')
+		self._view.chroma = plotChroma(self._view, self._view.activeMetals, self._data, self._view.activeMetals)._plotChroma()
 		if self.minline != None:
 			self._view.plotSpace.addItem(self.minline)
 		if self.maxline != None:

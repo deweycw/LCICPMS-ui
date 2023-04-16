@@ -19,10 +19,6 @@ class ICPMS_Data_Class:
 		fig, host = plt.subplots()
 
 		fig.subplots_adjust(right=0.75)
-		colors = sns.color_palette()
-		c_keys = ['55Mn','56Fe','59Co','60Ni','63Cu','66Zn','111Cd','208Pb']
-		c_values = colors[0:8]
-		color_dict = {c_keys[i]: c_values[i] for i in range(len(c_keys))}
 		icpms_max = 0
 		labels = []
 		lines = []
@@ -34,7 +30,7 @@ class ICPMS_Data_Class:
 			element = m[msize-2:]
 			print(mass)
 			print(element)
-			p, = host.plot(icpms_time, icpms_signal, color = color_dict[m], linewidth  = 0.75, label=r'$^{%s}$' % mass + element)
+			p, = host.plot(icpms_time, icpms_signal,  linewidth  = 0.75, label=r'$^{%s}$' % mass + element)
 			if icpms_max < max(icpms_signal): 
 				icpms_max = 1.1 * max(icpms_signal)
 			lines.append(p)
