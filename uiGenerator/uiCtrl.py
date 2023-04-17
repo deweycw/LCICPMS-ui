@@ -54,6 +54,8 @@ class PyLCICPMSCtrl:
 		self._view.homeDir = str(dialog.getExistingDirectory(self._view,"Select Directory:")) + '/'
 		
 		self._createListbox()
+		
+		self._view.integrateButtons['Reset'].setEnabled(True)
 		self._view.buttons['Calibrate'].setEnabled(True)
 		self._view.integrateButtons['Load Cal.'].setEnabled(True)
 		self._view.integrateButtons['115In Correction'].setEnabled(True)
@@ -78,8 +80,10 @@ class PyLCICPMSCtrl:
 
 	def _buildExpression(self, sub_exp):
 		"""Build expression."""
-		expression = self._view.displayText() + sub_exp
-		self._view.setDisplayText(expression)
+		'''expression = self._view.displayText() + sub_exp
+		self._view.setDisplayText(expression)'''
+		#self.display.setFocus()
+		return None
 
 	def _clearForm(self):
 		''' clears check boxes and nulls data '''
@@ -95,7 +99,7 @@ class PyLCICPMSCtrl:
 	def _importAndActivatePlotting(self):
 		'''activates plotting function after data imported'''
 		if self._view.listwidget.currentItem() is not None:
-			self._view.setDisplayText(self._view.listwidget.currentItem().text())
+			#self._view.setDisplayText(self._view.listwidget.currentItem().text())
 			self._model.importData()
 			self._makePlot()
 			self._view.buttons['Select Elements'].setEnabled(True)
@@ -184,6 +188,7 @@ class PyLCICPMSCtrl:
 		print('Loaded calibration file: ' + calfile)
 
 		self._view.calib_label.setText('Calibration loaded')
+		self._view.integrateButtons['Load Cal.'].setEnabled(False)
 
 	def _selectInNormFile(self):
 		''' opens window to select normalization file for 115In correction; saves average 115In signal from norm file'''
@@ -193,7 +198,6 @@ class PyLCICPMSCtrl:
 		filepath = dialog.getOpenFileName(self._view,"Openfile")[0]
 		normData = self._model.importData_generic(fdir = filepath )
 		self._view.normAvIndium = np.average(normData['115In'])
-		#print(self._view.normAvIndium)
 		self._view.integrateButtons['115In Correction'].setEnabled(False)
 		
 	def _resetIntegrate(self):
@@ -201,6 +205,11 @@ class PyLCICPMSCtrl:
 		self._model.removeIntRange()
 		self._view.integrateButtons['Integrate'].setStyleSheet("background-color: light gray")
 		self._view.integrateButtons['Integrate'].setEnabled(False)
+		self._view.normAvIndium
+		self._view.integrateButtons['115In Correction'].setEnabled(True)
+		self._view.calCurves = None
+		self._view.calib_label.setText('No calibration file')
+		self._view.integrateButtons['Load Cal.'].setEnabled(True)
 
 	def _connectSignals(self):
 		"""Connect signals and slots."""

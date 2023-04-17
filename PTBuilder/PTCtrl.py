@@ -50,7 +50,6 @@ class PTCtrl:
 
 	def _resetPeriodicTable(self):
 		self._mainview.activeMetals = self._mainview._metals_in_file.copy()
-		print(self._mainview._metals_in_file)
 		for element in self._mainview.activeMetals:
 			buttonkey = self._mainview.ptDictEls[self._mainview.rev[element]]
 			self._view.periodicTable[buttonkey].setStyleSheet('background-color : yellow')
@@ -61,7 +60,6 @@ class PTCtrl:
 		split_el = element.split('\n')[1]
 
 		isActive = self._mainview.periodicTableDict[element][3]
-		print(self._mainview._metals_in_file)
 		if isActive == 0:
 			
 			self._mainview.periodicTableDict[element][3] = 1

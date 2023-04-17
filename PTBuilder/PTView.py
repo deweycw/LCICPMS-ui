@@ -45,7 +45,7 @@ class PTView(QWidget):
 		self._createButtons()
 	
 	def closeEvent(self, event):
-		print(self._mainview._metals_in_file)
+		print('\n\nActive metals: ', self._mainview.activeMetals)
 		self.window_closed.emit()
 		event.accept()
 
@@ -82,8 +82,6 @@ class PTView(QWidget):
 			self.periodicTable[element].setFixedSize(40, 40)
 			isotope_list = self._mainview.isotopes[element.split('\n')[1]]
 			if len(list(set(isotope_list) & set(self._mainview._metals_in_file)))==0:
-				if '59Co' in isotope_list:
-					print(isotope_list,self._mainview._metals_in_file)
 				self.periodicTable[element].setEnabled(False)
 				self.periodicTable[element].setStyleSheet('background-color :' + attr[2])
 				attr[3] = 0

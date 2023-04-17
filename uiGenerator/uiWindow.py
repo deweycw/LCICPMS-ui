@@ -48,7 +48,6 @@ class PyLCICPMSUi(QMainWindow):
 		self._createPTDict()
 		self._createButtons()
 		self._createListbox()
-		self._createDisplay()
 		self._createPlot()
 		self._createIntegrateCheckBoxes()
 		self._createIntegrateLayout()
@@ -62,6 +61,8 @@ class PyLCICPMSUi(QMainWindow):
 
 	def _createPlot(self):
 		self.plotSpace = pg.PlotWidget()
+		self.plotSpace.viewport().setAttribute(Qt.WidgetAttribute.WA_AcceptTouchEvents, False)
+
 		self.plotSpace.setBackground('w')
 		styles = { 'font-size':'15px'}
 		self.plotSpace.setLabel('left', 'ICP-MS signal (1000s cps)', **styles)
@@ -76,16 +77,7 @@ class PyLCICPMSUi(QMainWindow):
 		self.topLayout.addRow("Enter directory:", self.DirEntry)
 		self.topLayout.addWidget(self.DirEntry)
 
-	def _createDisplay(self):
-		'''Create the display'''
-		self.display = QLineEdit()
-		self.display.setFixedHeight(35)
-		self.display.setAlignment(Qt.AlignmentFlag.AlignRight) 
-		self.display.setReadOnly(True)
-		self.generalLayout.addWidget(self.display)
-
 	def _createCheckBoxes(self):
-		# Add some checkboxes to the layout  
 		self.checkBoxes = {}      
 		optionsLayout = QHBoxLayout()
 		for m in self.metalOptions:
@@ -95,9 +87,9 @@ class PyLCICPMSUi(QMainWindow):
 		self.generalLayout.addLayout(optionsLayout)
 
 	def _createIntegrateCheckBoxes(self):
-		# Add some checkboxes to the layout  
 		self.integrateLayout = QHBoxLayout()
-		checkboxLayout =QVBoxLayout()
+		self.checkboxLayout =QVBoxLayout()
+		checkboxLayout = self.checkboxLayout
 		self.intbox = QCheckBox('Select integration range?')
 		self.oneFileBox = QCheckBox('Single output file?')
 		self.baseSubtractBox = QCheckBox('Baseline subtraction?')
@@ -106,9 +98,7 @@ class PyLCICPMSUi(QMainWindow):
 		checkboxLayout.addWidget(self.baseSubtractBox)
 		self.integrateLayout.addLayout(checkboxLayout)
 
-	
 	def _createIntegrateLayout(self):
-		"""Create the integrate buttons."""
 		self.integrateButtons = {}
 		self.intButtonLayout = QGridLayout()
 		intbuttons = {'Integrate': (0,0),'Load Cal.': (0,2),'Reset': (0,3), '115In Correction': (0,1)}
@@ -121,11 +111,9 @@ class PyLCICPMSUi(QMainWindow):
 			self.intButtonLayout.addWidget(self.integrateButtons[btnText], pos[0],pos[1])
 			
 		self.integrateLayout.addLayout(self.intButtonLayout)
-		# Add buttonsLayout to the general layout
 		self.generalLayout.addLayout(self.integrateLayout)
 
 	def _createListbox(self):
-	
 		listBoxLayout = QGridLayout()
 		self.listwidget = QListWidget()
 		listBoxLayout.addWidget(self.listwidget)
@@ -141,7 +129,6 @@ class PyLCICPMSUi(QMainWindow):
 		self.intButtonLayout.addWidget(self.calib_label,1,3)	
 
 	def _createButtons(self):
-		"""Create the buttons."""
 		self.buttons = {}
 		buttonsLayout = QGridLayout()
 		# Button text | position on the QGridLayout
@@ -149,7 +136,6 @@ class PyLCICPMSUi(QMainWindow):
 	     		   'Calibrate': (0,1),
 				   'Select Elements': (0,3)
 				  }
-		# Create the buttons and add them to the grid layout
 		for btnText, pos in buttons.items():
 			self.buttons[btnText] = QPushButton(btnText)
 			if btnText == 'Directory':
@@ -157,25 +143,14 @@ class PyLCICPMSUi(QMainWindow):
 			else:
 				self.buttons[btnText].setFixedSize(110, 40)
 			buttonsLayout.addWidget(self.buttons[btnText], pos[0], pos[1])
-		# Add buttonsLayout to the general layout
 		self.generalLayout.addLayout(buttonsLayout)
 	
 	def clicked(self):
 		item = self.listwidget.currentItem()
 		print('\nfile: ' + item.text())
 		return self.listwidget.currentItem()
-	
-	def setDisplayText(self, text):
-		"""Set display's text."""
-		self.display.setText(text)
-		self.display.setFocus()
-
-	def displayText(self):
-		"""Get display's text."""
-		return self.display.text()
 
 	def clearChecks(self):
-		"""Clear the display."""
 		for cbox in self.checkBoxes.values():
 			cbox.setCheckState(Qt.CheckState.Unchecked)
 

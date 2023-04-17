@@ -15,6 +15,8 @@ import seaborn as sns
 import csv
 from .chroma import *
 from .pgChroma import *
+import re
+import copy
 
 __version__ = '2.1'
 __author__ = 'Christian Dewey'
@@ -39,21 +41,25 @@ class LICPMSfunctions:
 		
 	def importData(self):
 		'''imports LCICPMS .csv file'''
-		print('blag')
 		if self._view.listwidget.currentItem() is not None:
 			self.fdir = self._view.homeDir + self._view.listwidget.currentItem().text()
 			self._data = pd.read_csv(self.fdir,sep=';|,',skiprows = 0, header = 1,engine='python')
+			print(self._data)
 
 		if self._view._metals_in_file == []:
-			print('here')
 			for c in self._data.columns:
 				if 'Time' in c:
 					ic = c.split(' ')[1]
-					#self.active_metal_isotopes.append(ic)
 					self._view._metals_in_file.append(ic)
 					self._view.activeMetals.append(ic)
 		self._view.active_metal_isotopes = self._view.activeMetals
+	
+	def importData_generic(self,fdir):
+		'''imports LCICPMS .csv file'''
+		data = pd.read_csv(fdir,sep=';',skiprows = 0, header = 1)
 
+		return data 
+	
 	def plotActiveMetals(self):
 		'''plots active metals for selected file'''
 
@@ -67,14 +73,14 @@ class LICPMSfunctions:
 		'''integrates over specified x range'''
 		self.intRange = intRange
 		time_holders = {'start_time': 0, 'stop_time' : 0}
-		metalList = ['55Mn','56Fe','59Co','60Ni','63Cu','66Zn','111Cd', '208Pb']
-		metal_dict= {key: None for key in metalList}
+		metals_no_indium = copy.deepcopy(self._view._metals_in_file)
+		metals_no_indium.remove('115In')
+		metal_dict= {m: None for m in metals_no_indium}
 		corr_dict = {'correction': None}
 		tstamp = {'timestamp': None}
 		metalConcs = {**tstamp,**time_holders,**corr_dict,**metal_dict}
 		peakAreas = {**tstamp,**time_holders,**corr_dict,**metal_dict}
 
-		print(self._view.normAvIndium)
 		if self._view.normAvIndium > 0:
 			indium_col_ind = self._data.columns.get_loc('115In')
 			if len(self._data['Time 115In']) > 2000:
@@ -85,97 +91,90 @@ class LICPMSfunctions:
 		else:
 			corr_factor = 1
 
-		for metal in self._view.activeMetals:
-			if metal != '115In':
-				time = self._data['Time ' + metal] / 60
-				range_min = self.intRange[0]
-				range_max = self.intRange[1]
-				min_delta = min(abs(time - range_min))
-				max_delta = min(abs(time - range_max))
-				i_tmin = int(np.where(abs(time - range_min) == min_delta )[0][0])
-				i_tmax = int(np.where(abs(time - range_max) == max_delta )[0][0])
-				minval = self._data.iloc[i_tmin]
-				minval = minval['Time ' + metal]
-				#print( i_tmin, minval/60, range_min)
+		for metal in metals_no_indium: 
 
-				maxval = self._data.iloc[i_tmax]
-				maxval = maxval['Time ' + metal]
-				#print( i_tmax, maxval/60, range_max)
-
-				#print(icpms_dataToSum)
-				metalConcs['start_time'] = '%.2f' % range_min
-				metalConcs['stop_time'] = '%.2f' % range_max
-				peakAreas['start_time'] = '%.2f' % range_min
-				peakAreas['stop_time'] = '%.2f' % range_max
-
-				metalConcs['correction'] = '%.3f' % corr_factor 
-				peakAreas['correction'] = '%.3f' % corr_factor 
-
-				dateTimeObj = datetime.now()
-				timestampStr = dateTimeObj.strftime("%d-%b-%Y (%H:%M:%S)")
-				metalConcs['timestamp'] = timestampStr
-				peakAreas['timestamp'] = timestampStr
-
-				me_col_ind = self._data.columns.get_loc(metal)
-				summed_area = 0
-				timeDelta = 0
-				for i in range(i_tmin, i_tmax+1):
-					icp_1 = self._data.iloc[i,me_col_ind] / corr_factor# cps
-					icp_2 = self._data.iloc[i+1,me_col_ind] / corr_factor
-					min_height = min([icp_1,icp_2])
-					max_height = max([icp_1,icp_2])
-					#print('min height: %.2f' % min_height) 
-					#print('max height: %.2f' % max_height) 
-					
-					timeDelta = (self._data.iloc[i+1,me_col_ind - 1] - self._data.iloc[i,me_col_ind - 1])/60 # minutes; time is always to left of metal signal
-					#print('time step: %.4f' % timeDelta) 
-					#print(i, i+1, timeDelta)
-					#print(min_height, max_height)
-					rect_area = timeDelta * min_height
-					top_area = timeDelta * (max_height - min_height) * 0.5
-					An = rect_area + top_area
-					#print('An: %.2f' % An )
-					#print('rect area: %.2f' % rect_area)
-					#print('top area: %.2f' % top_area)
-					#print('dArea: %.2f' % An)
-					summed_area = summed_area + An  # area =  cps * sec = counts
+			try:
 				
-				#print('yes base subtract')
-				if self._view.baseSubtract == True:
-					#print('yes base subtract')
-					baseline_height_1 = self._data.iloc[i_tmin,me_col_ind] / corr_factor
-					baseline_height_2 =  self._data.iloc[i_tmax,me_col_ind] / corr_factor
-					baseline_timeDelta = (self._data.iloc[i_tmax,me_col_ind - 1] - self._data.iloc[i_tmin,me_col_ind - 1])/60 #minutes
-					#print('baseline_height_1: %.2f' % baseline_height_1)
-					#print('baseline_height_2: %.2f' % baseline_height_2)
-					#print('timeDelta: %.2f' % baseline_timeDelta)
+				if metal in self._view.activeMetals:
 
-					min_base_height = min([baseline_height_1, baseline_height_2])
-					max_base_height = max([baseline_height_1, baseline_height_2])
-					#print('min_base_height: %.2f' % min_base_height)
-					#print('max_base_height: %.2f' % max_base_height)
-					baseline_area_1 = min_base_height * baseline_timeDelta
-					baseline_area_2 = (max_base_height - min_base_height) * baseline_timeDelta * 0.5
-					#print('baseline_area_1: %.2f' % baseline_area_1)
-					#print('baseline_area_2: %.2f' % baseline_area_2)
-					
-					#print('summed_area: %.2f' % summed_area)
-					baseline_area = baseline_area_1 + baseline_area_2
-					summed_area = summed_area - baseline_area
-					summed_area = max(summed_area,0)
-					#print('baseline_area: %.2f' % baseline_area)
-					
+					time = self._data['Time ' + metal] / 60
+					range_min = self.intRange[0]
+					range_max = self.intRange[1]
+					min_delta = min(abs(time - range_min))
+					max_delta = min(abs(time - range_max))
+					i_tmin = int(np.where(abs(time - range_min) == min_delta )[0][0])
+					i_tmax = int(np.where(abs(time - range_max) == max_delta )[0][0])
+					minval = self._data.iloc[i_tmin]
+					minval = minval['Time ' + metal]
 
-				cal_curve = self._view.calCurves[metal]	
-				slope = cal_curve['m']
-				intercept = cal_curve['b']
-				conc_ppb = slope * summed_area + intercept
-				conc_uM = conc_ppb / self._view.masses[metal]
+					maxval = self._data.iloc[i_tmax]
+					maxval = maxval['Time ' + metal]
+
+					metalConcs['start_time'] = '%.2f' % range_min
+					metalConcs['stop_time'] = '%.2f' % range_max
+					peakAreas['start_time'] = '%.2f' % range_min
+					peakAreas['stop_time'] = '%.2f' % range_max
+
+					metalConcs['correction'] = '%.3f' % corr_factor 
+					peakAreas['correction'] = '%.3f' % corr_factor 
+
+					dateTimeObj = datetime.now()
+					timestampStr = dateTimeObj.strftime("%d-%b-%Y (%H:%M:%S)")
+					metalConcs['timestamp'] = timestampStr
+					peakAreas['timestamp'] = timestampStr
+
+					me_col_ind = self._data.columns.get_loc(metal)
+					summed_area = 0
+					timeDelta = 0
+					for i in range(i_tmin, i_tmax+1):
+						icp_1 = self._data.iloc[i,me_col_ind] / corr_factor# cps
+						icp_2 = self._data.iloc[i+1,me_col_ind] / corr_factor
+						min_height = min([icp_1,icp_2])
+						max_height = max([icp_1,icp_2])
+						
+						timeDelta = (self._data.iloc[i+1,me_col_ind - 1] - self._data.iloc[i,me_col_ind - 1])/60 # minutes; time is always to left of metal signal
+						rect_area = timeDelta * min_height
+						top_area = timeDelta * (max_height - min_height) * 0.5
+						An = rect_area + top_area
+						summed_area = summed_area + An  # area =  cps * sec = counts
+					
+					if self._view.baseSubtract == True:
+						baseline_height_1 = self._data.iloc[i_tmin,me_col_ind] / corr_factor
+						baseline_height_2 =  self._data.iloc[i_tmax,me_col_ind] / corr_factor
+						baseline_timeDelta = (self._data.iloc[i_tmax,me_col_ind - 1] - self._data.iloc[i_tmin,me_col_ind - 1])/60 #minutes
+
+						min_base_height = min([baseline_height_1, baseline_height_2])
+						max_base_height = max([baseline_height_1, baseline_height_2])
+						baseline_area_1 = min_base_height * baseline_timeDelta
+						baseline_area_2 = (max_base_height - min_base_height) * baseline_timeDelta * 0.5
+						
+						baseline_area = baseline_area_1 + baseline_area_2
+						summed_area = summed_area - baseline_area
+						summed_area = max(summed_area,0)					
+
+					cal_curve = self._view.calCurves[metal]	
+					slope = cal_curve['m']
+					intercept = cal_curve['b']
+					conc_ppb = slope * summed_area + intercept
+					
+					mass = re.split(r"\D+",metal)[0]
+					conc_uM = conc_ppb / float(mass)
+					
+					peakAreas[metal] = '%.1f' % summed_area
+					metalConcs[metal] = '%.3f' % conc_uM
+					
+					print('\n' + metal + ' uM: %.3f' % conc_uM)
+					print(metal  + ' peak area: %.1f' % summed_area)
+
+				else:
+					peakAreas[metal] = 'NA' 
+					metalConcs[metal] = 'NA' 
 				
-				peakAreas[metal] = '%.1f' % summed_area
-				metalConcs[metal] = '%.3f' % conc_uM
-				print('\n' + metal + ' uM: %.3f' % conc_uM)
-				print(metal  + ' peak area: %.1f' % summed_area)
+			except:
+
+				print('\nNo calibration data for %s' %metal)
+				peakAreas[metal] = 'nocal'
+				metalConcs[metal] = 'nocal'
 
 		
 		if self._view.singleOutputFile == False:
@@ -186,7 +185,7 @@ class LICPMSfunctions:
 					fwriter = csv.DictWriter(csvfile, fieldnames=metalConcs.keys())
 					fwriter.writerow(metalConcs) 		
 			else:
-				csv_cols = ['start_time', 'stop_time','correction'] + metalList
+				csv_cols = ['start_time', 'stop_time','correction'] + metals_no_indium
 				with open(filename, 'w', newline = '') as csvfile:
 					fwriter = csv.writer(csvfile, delimiter = ',', quotechar = '|')
 					if self._view.normAvIndium > 0:
@@ -206,11 +205,9 @@ class LICPMSfunctions:
 					fwriter = csv.DictWriter(csvfile, fieldnames=metalConcs.keys())
 					fwriter.writerow(metalConcs) 		
 			else:
-				csv_cols = ['filename','tstamp','start_time', 'stop_time','correction'] + metalList
+				csv_cols = ['filename','tstamp','start_time', 'stop_time','correction'] + metals_no_indium
 				with open(filename, 'w', newline = '') as csvfile:
 					fwriter = csv.writer(csvfile, delimiter = ',', quotechar = '|')
-				#	if self._view.normAvIndium > 0:
-			#		fwriter.writerow(['115In correction applied: %.3f' % corr_factor,''])
 					fwriter.writerow(['concentrations in uM',''])
 					fwriter.writerow(['time in minutes',''])
 					fwriter.writerow(csv_cols)
@@ -226,7 +223,7 @@ class LICPMSfunctions:
 					fwriter = csv.DictWriter(csvfile, fieldnames=peakAreas.keys())
 					fwriter.writerow(peakAreas) 		
 			else:
-				csv_cols = ['filename','tstamp','start_time', 'stop_time', 'correction'] + metalList
+				csv_cols = ['filename','tstamp','start_time', 'stop_time', 'correction'] + metals_no_indium
 				with open(filename, 'w', newline = '') as csvfile:
 					fwriter = csv.writer(csvfile, delimiter = ',', quotechar = '|')
 					if self._view.normAvIndium > 0:
@@ -236,14 +233,12 @@ class LICPMSfunctions:
 				with open(filename, 'a', newline = '') as csvfile:
 					fwriter = csv.DictWriter(csvfile, fieldnames=peakAreas.keys())
 					fwriter.writerow(peakAreas) 
-			#print('Intercept: %.4f' % intercept)
-			#print('Slope: %.8f' % slope) 
 
 	def plotLowRange(self,xmin,n):
 		'''plots integration range'''
 		col = self.intColors[0]
 		self.minline = pg.InfiniteLine(xmin, pen = col, angle = 90)
-		self._view.plotSpace.addItem(self.minline) #InfiniteLine(minInt,angle = 90)
+		self._view.plotSpace.addItem(self.minline) 
 		
 	def plotHighRange(self,xmax,n):
 		col = self.intColors[0]
