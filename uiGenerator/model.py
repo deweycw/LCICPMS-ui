@@ -44,7 +44,6 @@ class LICPMSfunctions:
 		if self._view.listwidget.currentItem() is not None:
 			self.fdir = self._view.homeDir + self._view.listwidget.currentItem().text()
 			self._data = pd.read_csv(self.fdir,sep=';|,',skiprows = 0, header = 1,engine='python')
-			print(self._data)
 
 		if self._view._metals_in_file == []:
 			for c in self._data.columns:
