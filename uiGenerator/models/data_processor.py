@@ -2,16 +2,19 @@ from curses import meta
 import time
 from datetime import datetime
 from datetime import timedelta
-import sys 
+import sys
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import * 
+from PyQt6.QtWidgets import *
 from pyqtgraph import PlotWidget, plot
 import pyqtgraph as pg
 from functools import partial
 import os
 import pandas as pd
+import numpy as np
 import seaborn as sns
 import csv
+from lcicpms.raw_icpms_data import RawICPMSData
+from lcicpms.integrate import Integrate
 from ..plotting.static import ICPMS_Data_Class
 from ..plotting.interactive import plotChroma
 
@@ -37,12 +40,39 @@ class LICPMSfunctions:
 		self.maxline = None
 		
 	def importData(self):
-		'''imports LCICPMS .csv file'''
+		'''imports LCICPMS .csv file using lcicpms.RawICPMSData'''
 		print(self._view.listwidget.currentItem().text())
 		if self._view.listwidget.currentItem() is not None:
 			self.fdir = self._view.homeDir + self._view.listwidget.currentItem().text()
 			try:
-				self._data = pd.read_csv(self.fdir,sep=';',skiprows = 0, header = 1)
+				# Use lcicpms RawICPMSData for intelligent CSV parsing
+				raw_data = RawICPMSData(self.fdir)
+				self._data = raw_data.raw_data_df
+				self._raw_icpms = raw_data  # Store for later use
+
+				# Populate _elements_in_file from RawICPMSData (these are full analyte names)
+				self._view._elements_in_file = raw_data.elements.copy()
+
+				# Build mapping from element symbols to available analytes
+				# This handles both simple isotopes (e.g., "56Fe") and TQ mode analytes (e.g., "32S | 32S.16O")
+				self._view._analytes_by_element = {}
+				for analyte in raw_data.elements:
+					# Extract the isotope from the analyte name
+					# Format can be: "56Fe" or "32S | 32S.16O" or "238U | 238U.16O2"
+					isotope = analyte.split(' | ')[0] if ' | ' in analyte else analyte
+
+					# Extract element symbol from isotope (e.g., "Fe" from "56Fe")
+					import re
+					match = re.search(r'(\d+)([A-Z][a-z]?)', isotope)
+					if match:
+						element_symbol = match.group(2)
+						if element_symbol not in self._view._analytes_by_element:
+							self._view._analytes_by_element[element_symbol] = []
+						self._view._analytes_by_element[element_symbol].append(analyte)
+
+				# Remove any activeElements that are not in the new file
+				self._view.activeElements = [elem for elem in self._view.activeElements
+				                              if elem in self._view._elements_in_file]
 			except FileNotFoundError:
 				print(f'Error: File not found: {self.fdir}')
 				raise
@@ -54,10 +84,10 @@ class LICPMSfunctions:
 				raise
 
 	def importData_generic(self,fdir):
-		'''imports LCICPMS .csv file'''
+		'''imports LCICPMS .csv file using lcicpms.RawICPMSData'''
 		try:
-			data = pd.read_csv(fdir,sep=';',skiprows = 0, header = 1)
-			return data
+			raw_data = RawICPMSData(fdir)
+			return raw_data.raw_data_df
 		except FileNotFoundError:
 			print(f'Error: File not found: {fdir}')
 			raise
@@ -68,14 +98,14 @@ class LICPMSfunctions:
 			print(f'Error reading file {fdir}: {e}')
 			raise 
 
-	def plotActiveMetalsMP(self):
-		'''plots active metals for selected file'''
-		activeMetalsPlot = ICPMS_Data_Class(self._data,self._view.activeMetals)
-		activeMetalsPlot.chroma().show()
+	def plotActiveElementsMP(self):
+		'''plots active elements for selected file'''
+		activeElementsPlot = ICPMS_Data_Class(self._data,self._view.activeElements)
+		activeElementsPlot.chroma().show()
 	
-	def plotActiveMetals(self):
-		'''plots active metals for selected file'''
-		self._view.chroma = plotChroma(self._view, self._view.metalOptions, self._data, self._view.activeMetals)._plotChroma()
+	def plotActiveElements(self):
+		'''plots active elements for selected file'''
+		self._view.chroma = plotChroma(self._view, self._view.elementOptions, self._data, self._view.activeElements)._plotChroma()
 		if self.minline != None:
 			self._view.plotSpace.addItem(self.minline)
 		if self.maxline != None:
@@ -85,115 +115,97 @@ class LICPMSfunctions:
 		'''integrates over specified x range'''
 		self.intRange = intRange
 		time_holders = {'start_time': 0, 'stop_time' : 0}
-		metalList = ['55Mn','56Fe','59Co','60Ni','63Cu','66Zn','111Cd', '208Pb']
-		metal_dict= {key: None for key in metalList}
+		elementList = ['55Mn','56Fe','59Co','60Ni','63Cu','66Zn','111Cd', '208Pb']
+		element_dict= {key: None for key in elementList}
 		corr_dict = {'correction': None}
 		tstamp = {'timestamp': None}
-		metalConcs = {**tstamp,**time_holders,**corr_dict,**metal_dict}
-		peakAreas = {**tstamp,**time_holders,**corr_dict,**metal_dict}
+		elementConcs = {**tstamp,**time_holders,**corr_dict,**element_dict}
+		peakAreas = {**tstamp,**time_holders,**corr_dict,**element_dict}
 
 		print(self._view.normAvIndium)
 		if self._view.normAvIndium > 0:
-			indium_col_ind = self._data.columns.get_loc('115In')
-			if len(self._data['Time 115In']) > 2000:
-				corr_factor = np.average(self._data.iloc[550:2500,indium_col_ind]) / self._view.normAvIndium  #550:2500 indices correspond to ~ 150 to 350 sec
+			# Find indium column (handles both '115In' and '115In | 115In' formats)
+			indium_col = None
+			for col in self._data.columns:
+				if col.startswith('115In') and 'Time' not in col:
+					indium_col = col
+					break
+
+			if indium_col:
+				indium_col_ind = self._data.columns.get_loc(indium_col)
+				time_col = 'Time ' + indium_col
+				if len(self._data[time_col]) > 2000:
+					corr_factor = np.average(self._data.iloc[550:2500,indium_col_ind]) / self._view.normAvIndium
+				else:
+					corr_factor = np.average(self._data.iloc[:,indium_col_ind]) / self._view.normAvIndium
+				print('\ncorrection factor: %.4f' % corr_factor)
 			else:
-				corr_factor = np.average(self._data.iloc[:,indium_col_ind]) / self._view.normAvIndium  #550:2500 indices correspond to ~ 150 to 350 sec
-			print('\ncorrection factor: %.4f' % corr_factor)
+				print('\nWarning: 115In not found in file, no correction applied')
+				corr_factor = 1
 		else:
 			corr_factor = 1
 
-		for metal in self._view.activeMetals:
-			if metal != '115In':
-				time = self._data['Time ' + metal] / 60
-				range_min = self.intRange[0]
-				range_max = self.intRange[1]
-				min_delta = min(abs(time - range_min))
-				max_delta = min(abs(time - range_max))
-				i_tmin = int(np.where(abs(time - range_min) == min_delta )[0][0])
-				i_tmax = int(np.where(abs(time - range_max) == max_delta )[0][0])
-				minval = self._data.iloc[i_tmin]
-				minval = minval['Time ' + metal]
-				#print( i_tmin, minval/60, range_min)
+		for element in self._view.activeElements:
+			# Skip indium (handles both '115In' and '115In | 115In' formats)
+			if not element.startswith('115In'):
+				# Get time and intensity arrays (time in seconds, convert to minutes for range)
+				time_seconds = self._data['Time ' + element].values
+				time_minutes = time_seconds / 60
+				intensity = self._data[element].values / corr_factor  # Apply correction factor
 
-				maxval = self._data.iloc[i_tmax]
-				maxval = maxval['Time ' + metal]
-				#print( i_tmax, maxval/60, range_max)
+				# Set up time range for integration (convert minutes to seconds for lcicpms)
+				range_min = self.intRange[0]  # minutes
+				range_max = self.intRange[1]  # minutes
+				time_range_seconds = (range_min * 60, range_max * 60)  # convert to seconds
 
-				#print(icpms_dataToSum)
-				metalConcs['start_time'] = '%.2f' % range_min
-				metalConcs['stop_time'] = '%.2f' % range_max
+				# Store metadata
+				elementConcs['start_time'] = '%.2f' % range_min
+				elementConcs['stop_time'] = '%.2f' % range_max
 				peakAreas['start_time'] = '%.2f' % range_min
 				peakAreas['stop_time'] = '%.2f' % range_max
-
-				metalConcs['correction'] = '%.3f' % corr_factor 
-				peakAreas['correction'] = '%.3f' % corr_factor 
+				elementConcs['correction'] = '%.3f' % corr_factor
+				peakAreas['correction'] = '%.3f' % corr_factor
 
 				dateTimeObj = datetime.now()
 				timestampStr = dateTimeObj.strftime("%d-%b-%Y (%H:%M:%S)")
-				metalConcs['timestamp'] = timestampStr
+				elementConcs['timestamp'] = timestampStr
 				peakAreas['timestamp'] = timestampStr
 
-				me_col_ind = self._data.columns.get_loc(metal)
-				summed_area = 0
-				timeDelta = 0
-				for i in range(i_tmin, i_tmax+1):
-					icp_1 = self._data.iloc[i,me_col_ind] / corr_factor# cps
-					icp_2 = self._data.iloc[i+1,me_col_ind] / corr_factor
-					min_height = min([icp_1,icp_2])
-					max_height = max([icp_1,icp_2])
-					#print('min height: %.2f' % min_height) 
-					#print('max height: %.2f' % max_height) 
-					
-					timeDelta = (self._data.iloc[i+1,me_col_ind - 1] - self._data.iloc[i,me_col_ind - 1])/60 # minutes; time is always to left of metal signal
-					#print('time step: %.4f' % timeDelta) 
-					#print(i, i+1, timeDelta)
-					#print(min_height, max_height)
-					rect_area = timeDelta * min_height
-					top_area = timeDelta * (max_height - min_height) * 0.5
-					An = rect_area + top_area
-					#print('An: %.2f' % An )
-					#print('rect area: %.2f' % rect_area)
-					#print('top area: %.2f' % top_area)
-					#print('dArea: %.2f' % An)
-					summed_area = summed_area + An  # area =  cps * sec = counts
-				
-				#print('yes base subtract')
+				# Use lcicpms Integrate.integrate() for peak area calculation
+				summed_area = Integrate.integrate(intensity, time_seconds, time_range=time_range_seconds)
+
+				# Baseline subtraction (if enabled)
 				if self._view.baseSubtract == True:
-					#print('yes base subtract')
-					baseline_height_1 = self._data.iloc[i_tmin,me_col_ind] / corr_factor
-					baseline_height_2 =  self._data.iloc[i_tmax,me_col_ind] / corr_factor
-					baseline_timeDelta = (self._data.iloc[i_tmax,me_col_ind - 1] - self._data.iloc[i_tmin,me_col_ind - 1])/60 #minutes
-					#print('baseline_height_1: %.2f' % baseline_height_1)
-					#print('baseline_height_2: %.2f' % baseline_height_2)
-					#print('timeDelta: %.2f' % baseline_timeDelta)
+					# Find indices for baseline points
+					min_delta = min(abs(time_minutes - range_min))
+					max_delta = min(abs(time_minutes - range_max))
+					i_tmin = int(np.where(abs(time_minutes - range_min) == min_delta)[0][0])
+					i_tmax = int(np.where(abs(time_minutes - range_max) == max_delta)[0][0])
+
+					baseline_height_1 = intensity[i_tmin]
+					baseline_height_2 = intensity[i_tmax]
+					baseline_timeDelta = (time_seconds[i_tmax] - time_seconds[i_tmin]) / 60  # minutes
 
 					min_base_height = min([baseline_height_1, baseline_height_2])
 					max_base_height = max([baseline_height_1, baseline_height_2])
-					#print('min_base_height: %.2f' % min_base_height)
-					#print('max_base_height: %.2f' % max_base_height)
 					baseline_area_1 = min_base_height * baseline_timeDelta
 					baseline_area_2 = (max_base_height - min_base_height) * baseline_timeDelta * 0.5
-					#print('baseline_area_1: %.2f' % baseline_area_1)
-					#print('baseline_area_2: %.2f' % baseline_area_2)
-					
-					#print('summed_area: %.2f' % summed_area)
+
 					baseline_area = baseline_area_1 + baseline_area_2
 					summed_area = summed_area - baseline_area
-					summed_area = max(summed_area,0)
-					#print('baseline_area: %.2f' % baseline_area)
+					summed_area = max(summed_area, 0)
 					
 
-				cal_curve = self._view.calCurves[metal]	
+				cal_curve = self._view.calCurves[element]	
 				slope = cal_curve['m']
 				intercept = cal_curve['b']
 				conc_ppb = slope * summed_area + intercept
-				conc_uM = conc_ppb / self._view.masses[metal]
+				conc_uM = conc_ppb / self._view.masses[element]
 				
-				peakAreas[metal] = '%.1f' % summed_area
-				metalConcs[metal] = '%.3f' % conc_uM
-				print('\n' + metal + ' uM: %.3f' % conc_uM)
-				print(metal  + ' peak area: %.1f' % summed_area)
+				peakAreas[element] = '%.1f' % summed_area
+				elementConcs[element] = '%.3f' % conc_uM
+				print('\n' + element + ' uM: %.3f' % conc_uM)
+				print(element  + ' peak area: %.1f' % summed_area)
 
 		
 		if self._view.singleOutputFile == False:
@@ -201,10 +213,10 @@ class LICPMSfunctions:
 
 			if os.path.exists(filename):
 				with open(filename, 'a', newline = '') as csvfile:
-					fwriter = csv.DictWriter(csvfile, fieldnames=metalConcs.keys())
-					fwriter.writerow(metalConcs) 		
+					fwriter = csv.DictWriter(csvfile, fieldnames=elementConcs.keys())
+					fwriter.writerow(elementConcs) 		
 			else:
-				csv_cols = ['start_time', 'stop_time','correction'] + metalList
+				csv_cols = ['start_time', 'stop_time','correction'] + elementList
 				with open(filename, 'w', newline = '') as csvfile:
 					fwriter = csv.writer(csvfile, delimiter = ',', quotechar = '|')
 					if self._view.normAvIndium > 0:
@@ -213,18 +225,18 @@ class LICPMSfunctions:
 					fwriter.writerow(['time in minutes',''])
 					fwriter.writerow(csv_cols)
 				with open(filename, 'a', newline = '') as csvfile:
-					fwriter = csv.DictWriter(csvfile, fieldnames=metalConcs.keys())
-					fwriter.writerow(metalConcs) 	
+					fwriter = csv.DictWriter(csvfile, fieldnames=elementConcs.keys())
+					fwriter.writerow(elementConcs) 	
 		else:
 			filename =  self._view.homeDir + 'concentrations_uM_all.csv' 
 
-			metalConcs = {**{'filename':self.fdir.split('/')[-1].split(',')[0]},**metalConcs}
+			elementConcs = {**{'filename':self.fdir.split('/')[-1].split(',')[0]},**elementConcs}
 			if os.path.exists(filename):
 				with open(filename, 'a', newline = '') as csvfile:
-					fwriter = csv.DictWriter(csvfile, fieldnames=metalConcs.keys())
-					fwriter.writerow(metalConcs) 		
+					fwriter = csv.DictWriter(csvfile, fieldnames=elementConcs.keys())
+					fwriter.writerow(elementConcs) 		
 			else:
-				csv_cols = ['filename','tstamp','start_time', 'stop_time','correction'] + metalList
+				csv_cols = ['filename','tstamp','start_time', 'stop_time','correction'] + elementList
 				with open(filename, 'w', newline = '') as csvfile:
 					fwriter = csv.writer(csvfile, delimiter = ',', quotechar = '|')
 				#	if self._view.normAvIndium > 0:
@@ -233,8 +245,8 @@ class LICPMSfunctions:
 					fwriter.writerow(['time in minutes',''])
 					fwriter.writerow(csv_cols)
 				with open(filename, 'a', newline = '') as csvfile:
-					fwriter = csv.DictWriter(csvfile, fieldnames=metalConcs.keys())
-					fwriter.writerow(metalConcs) 
+					fwriter = csv.DictWriter(csvfile, fieldnames=elementConcs.keys())
+					fwriter.writerow(elementConcs) 
 
 			filename =  self._view.homeDir + 'peakareas_counts_all.csv' 
 
@@ -244,7 +256,7 @@ class LICPMSfunctions:
 					fwriter = csv.DictWriter(csvfile, fieldnames=peakAreas.keys())
 					fwriter.writerow(peakAreas) 		
 			else:
-				csv_cols = ['filename','tstamp','start_time', 'stop_time', 'correction'] + metalList
+				csv_cols = ['filename','tstamp','start_time', 'stop_time', 'correction'] + elementList
 				with open(filename, 'w', newline = '') as csvfile:
 					fwriter = csv.writer(csvfile, delimiter = ',', quotechar = '|')
 					if self._view.normAvIndium > 0:

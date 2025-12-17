@@ -19,7 +19,18 @@ A PyQt5-based desktop application for analyzing and visualizing LC-ICP-MS (Liqui
 
 ## Quick Start
 
-### Installation
+### Download Standalone Executable (Recommended)
+
+**No Python installation required!**
+
+Download the latest release for your platform:
+- **Windows**: [LCICPMS-ui-windows.zip](https://github.com/deweycw/LCICPMS-ui/releases/latest)
+- **macOS**: [LCICPMS-ui-macos.dmg](https://github.com/deweycw/LCICPMS-ui/releases/latest)
+- **Linux**: [LCICPMS-ui-linux.tar.gz](https://github.com/deweycw/LCICPMS-ui/releases/latest)
+
+The application will automatically check for updates on startup.
+
+### Installation from Source
 
 ```bash
 # Clone the repository
@@ -50,7 +61,7 @@ python -m uiGenerator
 
 1. **Select Directory**: Click "Directory" to choose folder containing CSV data files
 2. **Load Data**: Select a CSV file from the list
-3. **Select Metals**: Check boxes for metals to analyze
+3. **Select Elements**: Click "Select Elements" to open periodic table and choose elements to analyze
 4. **View Chromatogram**: Interactive plot displays automatically
 5. **Integrate Peaks**:
    - Check "Select integration range?"
@@ -152,6 +163,34 @@ pip install -e .
 Make sure PyQt5 is properly installed:
 ```bash
 pip install --force-reinstall PyQt5
+```
+
+## Building and Distribution
+
+### For End Users
+
+Download pre-built executables from the [Releases page](https://github.com/deweycw/LCICPMS-ui/releases/latest).
+
+### For Developers
+
+See detailed build instructions:
+- **[DISTRIBUTION.md](DISTRIBUTION.md)** - Quick start guide for building and releasing
+- **[BUILDING.md](BUILDING.md)** - Comprehensive build documentation
+
+**Quick build:**
+```bash
+# Linux/macOS
+./build.sh
+
+# Windows
+build.bat
+```
+
+**Create a release:**
+```bash
+git tag v0.3.0
+git push origin v0.3.0
+# GitHub Actions automatically builds and publishes
 ```
 
 ## Contributing

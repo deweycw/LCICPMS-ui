@@ -28,8 +28,8 @@ class Calibration(QWidget):
 		self.calibrationDir = ''
 		self.n_area = []
 		self.standards = {'Blank':[], 'Std 1':[], 'Std 2':[], 'Std 3':[], 'Std 4':[], 'Std 5':[]}
-		self.metalOptions = ['55Mn','56Fe','59Co','60Ni','63Cu','66Zn','111Cd', '208Pb']
-		self.activeMetals =  self.metalOptions
+		self.elementOptions = ['55Mn','56Fe','59Co','60Ni','63Cu','66Zn','111Cd', '208Pb']
+		self.activeElements =  self.elementOptions
 		#self.calCurves = self._view.calCurves
 
     # self.setLayout(mainLayout)
@@ -45,7 +45,7 @@ class Calibration(QWidget):
 
 		self.setLayout(self.generalLayout)
 
-		self.metalOptions = ['55Mn','56Fe','59Co','60Ni','63Cu','66Zn','111Cd','115In', '208Pb']
+		self.elementOptions = ['55Mn','56Fe','59Co','60Ni','63Cu','66Zn','111Cd','115In', '208Pb']
 		# Create the display and the buttons
 		#self._selectDirectory()
 		self._createButtons()
@@ -104,7 +104,7 @@ class Calibration(QWidget):
 	def _createCheckBoxes(self):
 		self.checkBoxes = []
 		optionsLayout = QHBoxLayout()
-		for m in self.metalOptions:
+		for m in self.elementOptions:
 			cbox = QCheckBox(m)
 			self.checkBoxes.append(cbox)
 			optionsLayout.addWidget(cbox)
@@ -184,16 +184,16 @@ class Calibration(QWidget):
 	def clickBox(self, cbox, state):
 		if state == Qt.CheckState.Checked:
 			print('checked: ' + cbox.text())
-			self.activeMetals.append(cbox.text())
-		   # print(self.activeMetals)
-			return self.activeMetals
+			self.activeElements.append(cbox.text())
+		   # print(self.activeElements)
+			return self.activeElements
 		elif state == Qt.CheckState.Unchecked:
 			print('Unchecked: ' + cbox.text())
-			self.activeMetals.remove(cbox.text())
-			#print(self.activeMetals)
-			return self.activeMetals
+			self.activeElements.remove(cbox.text())
+			#print(self.activeElements)
+			return self.activeElements
 		else:
 			print('Unchecked')
-			return self.activeMetals
+			return self.activeElements
 
 

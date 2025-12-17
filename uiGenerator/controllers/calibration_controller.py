@@ -43,7 +43,7 @@ class CalCtrlFunctions:
 	def _selectDirectory(self):
 		dialog = QFileDialog()
 		dialog.setWindowTitle("Select Calibration Directory")
-		dialog.setViewMode(QFileDialog.Detail)
+		dialog.setViewMode(QFileDialog.ViewMode.Detail)
 		self._calview.calibrationDir = str(dialog.getExistingDirectory(self._calview,"Select Directory:")) + '/'
 		print(self._calview.calibrationDir)
 		self._createListbox()
@@ -87,7 +87,7 @@ class CalCtrlFunctions:
 		self._calview.integrateButtons['Enter'].setEnabled(False)
 		self._calview.integrateButtons['Enter'].setStyleSheet("background-color: light gray")
 		self._calview.stdConcEntry.clear()
-		self._mainview.activeMetals.clear()
+		self._mainview.activeElements.clear()
 		self._mainview.calCurves = {}
 		self._calview.plotSpace.clear()
 		self.currentStd = None
@@ -102,7 +102,7 @@ class CalCtrlFunctions:
 		'''activates plotting function after data imported'''
 		self._model.importData()
 		self._calview.setDisplayText(self._calview.listwidget.currentItem().text())
-		self._model.plotActiveMetals()
+		self._model.plotActiveElements()
 
 	def _mouseover(self, pos):
 		''' selects range for integration'''
@@ -165,7 +165,7 @@ class CalCtrlFunctions:
 
 	def _makePlot(self):
 		'''makes plot & activates integration'''
-		self._model.plotActiveMetals()
+		self._model.plotActiveElements()
 
 
 	def _calcCurve(self):

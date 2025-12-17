@@ -45,7 +45,7 @@ class PTView(QWidget):
 		self._createButtons()
 	
 	def closeEvent(self, event):
-		print('\n\nActive metals: ', self._mainview.activeMetals)
+		print('\n\nActive elements: ', self._mainview.activeElements)
 		self.window_closed.emit()
 		event.accept()
 
@@ -80,23 +80,28 @@ class PTView(QWidget):
 		for element, attr in self._mainview.periodicTableDict.items():
 			self.periodicTable[element] = QPushButton(element)
 			self.periodicTable[element].setFixedSize(40, 40)
-			isotope_list = self._mainview.isotopes[element.split('\n')[1]]
-			if len(list(set(isotope_list) & set(self._mainview._metals_in_file)))==0:
+			element_symbol = element.split('\n')[1]  # e.g., "Fe" from "56\nFe"
+
+			# Check if this element has any available analytes in the data file
+			has_analytes = element_symbol in self._mainview._analytes_by_element and \
+			               len(self._mainview._analytes_by_element[element_symbol]) > 0
+
+			if not has_analytes:
 				self.periodicTable[element].setEnabled(False)
 				self.periodicTable[element].setStyleSheet('background-color :' + attr[2])
 				attr[3] = 0
-			elif len(list(set(isotope_list) & set(self._mainview._metals_in_file)))>0:
+			else:
 				self.periodicTable[element].setEnabled(True)
-				#self.periodicTable[element].setStyleSheet('background-color : yellow')
-				inlist = False
-				for i in isotope_list:
-					if i in self._mainview.activeMetals:
-						self.periodicTable[element].setStyleSheet('background-color : yellow')
-						inlist = True
-						attr[3] = 1
-					if not inlist:
-						self.periodicTable[element].setStyleSheet('background-color : ' + attr[2])
-						attr[3] = 0
+				# Check if any analytes for this element are in activeElements
+				available_analytes = self._mainview._analytes_by_element[element_symbol]
+				inlist = any(analyte in self._mainview.activeElements for analyte in available_analytes)
+
+				if inlist:
+					self.periodicTable[element].setStyleSheet('background-color : yellow')
+					attr[3] = 1
+				else:
+					self.periodicTable[element].setStyleSheet('background-color : ' + attr[2])
+					attr[3] = 0
 					
 					
 

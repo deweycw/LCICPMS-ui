@@ -6,10 +6,10 @@ from matplotlib.ticker import (MultipleLocator, MaxNLocator,PercentFormatter)
 
 
 class ICPMS_Data_Class:
-	def __init__(self,icpms_data=None,metals=None,plt_title = None):
-		self.metals = metals
+	def __init__(self,icpms_data=None,elements=None,plt_title = None):
+		self.elements = elements
 		self.icpms_data = icpms_data
-		self.max_time = max(self.icpms_data['Time ' + metals[0]]) / 60
+		self.max_time = max(self.icpms_data['Time ' + elements[0]]) / 60
 		self.min_time = 0	
 		self.max_icp = None
 		self.min_icp = 0
@@ -19,14 +19,14 @@ class ICPMS_Data_Class:
 		fig, host = plt.subplots()
 
 		fig.subplots_adjust(right=0.75)
-		colors = sns.color_palette()
-		c_keys = ['55Mn','56Fe','59Co','60Ni','63Cu','66Zn','111Cd','208Pb']
-		c_values = colors[0:8]
-		color_dict = {c_keys[i]: c_values[i] for i in range(len(c_keys))}
+		# Generate colors based on actual elements being plotted
+		num_colors = max(len(self.elements), 1)
+		colors = sns.color_palette(n_colors=num_colors)
+		color_dict = {self.elements[i]: colors[i] if i < len(colors) else 'gray' for i in range(len(self.elements))}
 		icpms_max = 0
 		labels = []
 		lines = []
-		for m in self.metals:
+		for m in self.elements:
 			icpms_time = self.icpms_data['Time ' + m] / 60
 			icpms_signal = self.icpms_data[m] / 1000
 			msize = len(m)

@@ -1,16 +1,19 @@
 import sys
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import * 
+from PyQt6.QtWidgets import *
 from pyqtgraph import PlotWidget, plot
 import pyqtgraph as pg
 from functools import partial
 import os
 import pandas as pd
+import numpy as np
 import seaborn as sns
-from sklearn import  linear_model
+from sklearn import linear_model
 from sklearn.metrics import mean_squared_error, r2_score
 import json
 import matplotlib.pyplot as plt
+from lcicpms.raw_icpms_data import RawICPMSData
+from lcicpms.integrate import Integrate
 from ..plotting.static import ICPMS_Data_Class
 from ..plotting.interactive import plotChroma
 import csv
@@ -36,53 +39,37 @@ class CalibrateFunctions:
 		self.intColors = sns.color_palette(n_colors = 6, as_cmap = True)
 		
 	def importData(self):
-		'''imports cal .csv file'''
+		'''imports cal .csv file using lcicpms.RawICPMSData'''
 		fdir = self._calview.calibrationDir + self._calview.listwidget.currentItem().text()
-		self._data = pd.read_csv(fdir,sep=';',skiprows = 0, header = 1)
+		raw_data = RawICPMSData(fdir)
+		self._data = raw_data.raw_data_df
 
-		if self._calview.metals_in_stdfile == []:
-			for c in self._data.columns:
-				if 'Time' in c:
-					ic = c.split(' ')[1]
-					self._calview.metals_in_stdfile.append(ic)
-	def plotActiveMetals(self):
-		'''plots active metals for selected file'''
-		self._calview.chroma = plotChroma(self._calview, self._calview.metals_in_stdfile, self._data, self._calview.metals_in_stdfile)._plotChroma()
+		if self._calview.elements_in_stdfile == []:
+			self._calview.elements_in_stdfile = raw_data.elements.copy()
+	def plotActiveElements(self):
+		'''plots active elements for selected file'''
+		self._calview.chroma = plotChroma(self._calview, self._calview.elements_in_stdfile, self._data, self._calview.elements_in_stdfile)._plotChroma()
 
 	def integrate(self, intRange):
-		'''integrates over specified x range'''
+		'''integrates over specified x range using lcicpms.Integrate'''
 		self.intRange = intRange
 		pa_dict = {}
-		for metal in self._calview.metals_in_stdfile:
-			time = self._data['Time ' + metal] / 60
-			range_min = self.intRange[0]
-			range_max = self.intRange[1]
-			min_delta = min(abs(time - range_min))
-			max_delta = min(abs(time - range_max))
-			i_tmin = int(np.where(abs(time - range_min) == min_delta )[0][0])
-			i_tmax = int(np.where(abs(time - range_max) == max_delta )[0][0])
-			minval = self._data.iloc[i_tmin]
-			minval = minval['Time ' + metal]
+		for element in self._calview.elements_in_stdfile:
+			# Get time and intensity arrays
+			time_seconds = self._data['Time ' + element].values
+			intensity = self._data[element].values
 
-			maxval = self._data.iloc[i_tmax]
-			maxval = maxval['Time ' + metal]
+			# Set up time range (convert minutes to seconds for lcicpms)
+			range_min = self.intRange[0]  # minutes
+			range_max = self.intRange[1]  # minutes
+			time_range_seconds = (range_min * 60, range_max * 60)
 
-			me_col_ind = self._data.columns.get_loc(metal)
-			summed_area = 0
-			for i in range(i_tmin, i_tmax):
-				icp_1 = self._data.iloc[i,me_col_ind] # cps
-				icp_2 = self._data.iloc[i+1,me_col_ind]
-				min_height = min([icp_1,icp_2])
-				max_height = max([icp_1,icp_2])
-				timeDelta = self._data.iloc[i+1,me_col_ind - 1] - self._data.iloc[i,me_col_ind - 1] # seconds; time is always to left of metal signal
-				rect_area = timeDelta * min_height
-				top_area = timeDelta * (max_height - min_height) * 0.5
-				An = rect_area + top_area
-				summed_area = summed_area + An  # area =  cps * sec = counts
-			print(metal + ': ' + str(summed_area/60))
-	
-			pa_dict[metal] = summed_area/60
-				
+			# Use lcicpms Integrate.integrate() for peak area calculation
+			summed_area = Integrate.integrate(intensity, time_seconds, time_range=time_range_seconds)
+			print(element + ': ' + str(summed_area/60))
+
+			pa_dict[element] = summed_area/60
+
 			self._calview.n_area = pa_dict
 
 		filename =  self._calview.calibrationDir + 'calibration_areas.txt' 
@@ -107,11 +94,11 @@ class CalibrateFunctions:
 	def calcLinearRegression(self):
 		calCurve_dict = {}
 		saveDict = {}
-		metals = self._calview.metals_in_stdfile
+		elements = self._calview.elements_in_stdfile
 		blank_value = 0
 		blank_dict = {}
 
-		for m in metals:
+		for m in elements:
 			pas = []
 			concs = [] 
 			for std in self._calview.standards.keys():
@@ -133,7 +120,7 @@ class CalibrateFunctions:
 			y_pred = regr.predict(X)
 
 			# Print the Intercept:
-			print("Metal: " + m)
+			print("Element: " + m)
 			print('Intercept:', regr.intercept_)
 
 			# Print the Slope:

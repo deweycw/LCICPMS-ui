@@ -10,6 +10,9 @@ import json
 from ..ui.calibration_window import Calibration
 from ..controllers.calibration_controller import CalCtrlFunctions
 from ..models.calibration import CalibrateFunctions
+from PTBuilder.PTView import PTView
+from PTBuilder.PTCtrl import PTCtrl
+from PTBuilder.PTModel import PTModel
 
 __version__ = '0.1'
 __author__ = 'Christian Dewey'
@@ -36,18 +39,26 @@ class PyLCICPMSCtrl:
 		self._xMin = 0
 		self._xMax = 0
 		self.button_is_checked = False
-		
+
 		# Connect signals and slots
 		self._connectSignals()
+
+		# Check for updates on startup (in background)
+		QTimer.singleShot(500, self._check_for_updates)
+
+		# Automatically show directory selection dialog on startup
+		QTimer.singleShot(1000, self._selectDirectory)
 
 	def _selectDirectory(self):
 		self._view.homeDir = ''
 		self._view.listwidget.clear()
 		dialog = QFileDialog()
 		dialog.setWindowTitle("Select LC-ICPMS Directory")
-		dialog.setViewMode(QFileDialog.Detail)
-		self._view.homeDir = str(dialog.getExistingDirectory(self._view,"Select Directory:")) + '/'
-		
+		dialog.setViewMode(QFileDialog.ViewMode.Detail)
+		# Start in home directory (platform-independent)
+		home_dir = os.path.expanduser('~')
+		self._view.homeDir = str(dialog.getExistingDirectory(self._view, "Select Directory:", home_dir)) + '/'
+
 		self._createListbox()
 		self._view.integrateButtons['Calibrate'].setEnabled(True)
 		self._view.integrateButtons['Load Cal.'].setEnabled(True)
@@ -75,8 +86,8 @@ class PyLCICPMSCtrl:
 		self._view.setDisplayText(expression)
 
 	def _clearForm(self):
-		''' clears check boxes and nulls data '''
-		self._view.clearChecks()
+		''' clears selection and nulls data '''
+		self._view.activeElements = []
 		self._view.buttons['Plot'].setEnabled(False)
 		self._view.integrateButtons['Integrate'].setEnabled(False)
 		self._view.integrateButtons['Integrate'].setStyleSheet("background-color: light gray")
@@ -87,12 +98,14 @@ class PyLCICPMSCtrl:
 
 	def _importAndActivatePlotting(self):
 		'''activates plotting function after data imported'''
-		if self._view.activeMetals == []:
-			for cbox in self._view.checkBoxes.values():
-				cbox.setChecked(True)
 		if self._view.listwidget.currentItem() is not None:
 			self._view.setDisplayText(self._view.listwidget.currentItem().text())
 			self._model.importData()
+
+			# Auto-select all available elements if none selected
+			if self._view.activeElements == []:
+				self._view.activeElements = self._view._elements_in_file.copy()
+
 			self._view.buttons['Plot'].setEnabled(True)
 			self._makePlot()
 			self._view.buttons['Reset'].setEnabled(True)
@@ -160,17 +173,24 @@ class PyLCICPMSCtrl:
 
 	def _makePlot(self):
 		'''makes plot & activates integration'''
-		self._model.plotActiveMetals()
+		self._model.plotActiveElements()
 	
 	def _showCalWindow(self):
 		''' opens calibration window '''
 		#self.dialog = Calibration(view = self._view)
-		
-		
+
+
 		self.calWindow = Calibration(view = self._view)
 		calmodel = CalibrateFunctions(calview= self.calWindow, mainview = self._view)
 		CalCtrlFunctions(model=calmodel, mainview = self._view,view= self.calWindow)
 		self.calWindow.show()
+
+	def _showPeriodicTable(self):
+		''' opens periodic table for element selection '''
+		self._ptview = PTView(mainview=self._view)
+		ptmodel = PTModel(ptview=self._ptview, mainview=self._view, maincontrol=self)
+		PTCtrl(model=ptmodel, mainview=self._view, ptview=self._ptview, mainctrl=self)
+		self._ptview.show()
 
 	def _loadCalFile(self):
 		''' loads cal file and saves to self._mainview.calCurves '''
@@ -191,7 +211,7 @@ class PyLCICPMSCtrl:
 		''' opens window to select normalization file for 115In correction; saves average 115In signal from norm file'''
 		dialog = QFileDialog()
 		dialog.setWindowTitle("Select Normalization File")
-		dialog.setViewMode(QFileDialog.Detail)
+		dialog.setViewMode(QFileDialog.ViewMode.Detail)
 		filepath = dialog.getOpenFileName(self._view,"Openfile")[0]
 		normData = self._model.importData_generic(fdir = filepath )
 		self._view.normAvIndium = np.average(normData['115In'])
@@ -204,6 +224,17 @@ class PyLCICPMSCtrl:
 		self._view.integrateButtons['Integrate'].setStyleSheet("background-color: light gray")
 		self._view.integrateButtons['Integrate'].setEnabled(False)
 
+	def _check_for_updates(self):
+		"""Check for updates on startup"""
+		try:
+			from ..utils.update_checker import check_updates_on_startup
+			check_updates_on_startup(parent=self._view, silent=True)
+		except ImportError:
+			# Update checker not available (might be in development mode)
+			pass
+		except Exception as e:
+			print(f"Error checking for updates: {e}")
+
 	def _connectSignals(self):
 		"""Connect signals and slots."""
 		for btnText, btn in self._view.buttons.items():
@@ -212,25 +243,24 @@ class PyLCICPMSCtrl:
 					text = ''
 				else:
 					text = self._view.listwidget.currentItem().text()
-		
+
 				btn.clicked.connect(partial(self._buildExpression, text))
 
 		self._view.buttons['Load'].setEnabled(False)
 		self._view.buttons['Plot'].setEnabled(False)
 		self._view.buttons['Reset'].setEnabled(False)
+		# Select Elements button is always enabled - periodic table can be opened anytime
 		self._view.integrateButtons['Calibrate'].setEnabled(False)
 		self._view.integrateButtons['Load Cal.'].setEnabled(False)
 		self._view.integrateButtons['Integrate'].setEnabled(False)
 		self._view.integrateButtons['115In Correction'].setEnabled(False)
-		
+
 		self._view.listwidget.setCurrentItem(None)
 		self._view.buttons['Directory'].clicked.connect(self._selectDirectory)
+		self._view.buttons['Select Elements'].clicked.connect(self._showPeriodicTable)
 		
 		self._view.buttons['Load'].clicked.connect(self._importAndActivatePlotting)
 		self._view.listwidget.currentItemChanged.connect(self._importAndActivatePlotting)
-
-		for cbox in self._view.checkBoxes.values():
-			cbox.stateChanged.connect(partial( self._view.clickBox, cbox) )
 
 		self._view.intbox.stateChanged.connect(self._selectIntRange)
 		self._view.oneFileBox.stateChanged.connect(self._selectOneFile)

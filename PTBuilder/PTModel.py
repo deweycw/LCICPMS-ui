@@ -13,7 +13,7 @@ import pandas as pd
 from functools import partial
 import seaborn as sns
 import csv
-from uiGenerator.pgChroma import *
+from uiGenerator.plotting.interactive import plotChroma
 __version__ = '0.1'
 __author__ = 'Christian Dewey'
 
@@ -36,8 +36,8 @@ class PTModel:
 		self.ntime = True
 		self.intColors = sns.color_palette(n_colors = 6, as_cmap = True)
 
-	def plotActiveMetals(self):
-		'''plots active metals for selected file'''
+	def plotActiveElements(self):
+		'''plots active elements for selected file'''
 		self._maincontrol._makePlot()
 		
 
