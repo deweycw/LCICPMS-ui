@@ -87,31 +87,10 @@ class ICPMS_Data_Class:
 			print(mass)
 			print('icpmax: %.2f' % icpms_max )
 			p, = ax.plot(icpms_time, icpms_signal, color = color_dict[m], linewidth  = 0.75, label=r'$^{%s}$' % mass + element)
-		#c18	
-		#	ax.axvspan(0.5, 0.75,  color='burlywood')
-		#	ax.axvspan(0.75, 1.5,  color='lemonchiffon')
-		#	ax.axvspan(1.5, 2.0,  color='lightsteelblue')
-		#	ax.axvspan(6.4, 7.6,  color='lightgray')
-			
-			#ax.axvspan(0.56, 1.24,  color='silver')
-			
-			#if ('Cd' in m) or ('Zn' in m):
-			#	ax.axvspan(1.72, 3.1,  color='paleturquoise')
-			#else:
-		#		ax.axvspan(1.24, 2.43,  color='navajowhite')
-
-		#	ax.axvspan(3.88, 5.18,  color='lightgreen')
-
 
 			icpms_max = 1.1 * max(icpms_signal)
-			#lines.append(p)
-			#labels.append(r'$^{%s}$' % mass + element)
 			labels = [r'$^{%s}$' % mass + element]
-		
-			#ax.set_title(self.plt_title) 
-			
-		
-			
+
 			self.max_icp = icpms_max
 
 			ax.set_xlim(self.min_time, self.max_time)
@@ -122,44 +101,13 @@ class ICPMS_Data_Class:
 			ax.tick_params(axis='x', **tkw)
 
 			ax.xaxis.set_major_locator(MaxNLocator(4))
-			#ax.xaxis.set_minor_locator(MaxNLocator(20))
-
-			#ax.yaxis.set_major_locator(MaxNLocator(4))
-			#ax.yaxis.set_minor_locator(MaxNLocator(20))
 
 			ax.ticklabel_format(style='plain', axis='y', useMathText=True,scilimits=(0,0))
-			#ax.legend([p], labels,frameon = False, loc="upper right", borderaxespad=0)
 			ax.annotate(labels[0], xy=(0.9, 0.9),color = color_dict[m], xycoords='axes fraction', ha='right', va='top')
-		#plt.legend(lines, labels,frameon = False,bbox_to_anchor=(1.15,2.5), loc="center left", borderaxespad=0)
 		
 		plt.xlabel("Retention time (min)")
 		plt.subplots_adjust(left=0.18)
 
 		fig.text(0.01, 0.5, 'ICP-MS signal intensity (10'+r'$^{4}$'+ ' cps)', va='center', rotation='vertical')
-		#plt.ylabel()
 		sns.despine()
 		plt.savefig('/Users/christiandewey/manuscripts/in progress/LC-ICPMS/data/python/column-test/data-for-retention-plot/' + self._fname, dpi=300,bbox_inches='tight',format='eps')
-		#return fig
-
-import pandas as pd
-
-
-data_dir = '/Users/christiandewey/manuscripts/in progress/LC-ICPMS/data/python/soil-samples/plotting-data/' #'/Users/christiandewey/manuscripts/in progress/LC-ICPMS/data/python/column-test/data-for-retention-plot/'
-
-for ff in os.listdir(data_dir):
-	if '.csv' in ff:
-		csvf = ff.split('.')[0]
-		df = pd.read_csv(data_dir + ff,sep=';',skiprows = 0, header = 1)
-		print(csvf)
-		pname = csvf.split('_')[4] + '_' + csvf.split('_')[5] + '_' + csvf.split('_')[6]
-		#metals_p = ICPMS_Data_Class( df,['56Fe','59Co','60Ni','63Cu','66Zn','111Cd','208Pb'],nax = 7,fname = pname + '_nospan.eps')  #-noshade
-		metals_p = ICPMS_Data_Class( df,['56Fe','60Ni','63Cu'],nax = 3,fname = pname + '_nospan.eps')  #-noshade
-
-
-		metals_p.min_time = 0
-		metals_p.max_time = 25
-		metals_p.chroma_subplot()
-
-
-#plt.close('all')
-

@@ -6,14 +6,13 @@ import pyqtgraph as pg
 from functools import partial
 import os
 import pandas as pd
-from functools import partial
 import seaborn as sns
 from sklearn import  linear_model
 from sklearn.metrics import mean_squared_error, r2_score
 import json
 import matplotlib.pyplot as plt
-from .chroma import *
-from .pgChroma import *
+from ..plotting.static import ICPMS_Data_Class
+from ..plotting.interactive import plotChroma
 import csv
 
 __version__ = '0.1'

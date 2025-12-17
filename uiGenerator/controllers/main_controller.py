@@ -6,11 +6,10 @@ import pyqtgraph as pg
 from functools import partial
 import os
 import pandas as pd
-from functools import partial
 import json
-from uiGenerator.calWindowUI import *
-from uiGenerator.calCntrl import *
-from uiGenerator.calibrate import *
+from ..ui.calibration_window import Calibration
+from ..controllers.calibration_controller import CalCtrlFunctions
+from ..models.calibration import CalibrateFunctions
 
 __version__ = '0.1'
 __author__ = 'Christian Dewey'
@@ -31,12 +30,7 @@ class PyLCICPMSCtrl:
 		self._model = model
 		self._view = view
 		self._calWindow = calwindow
-		#self._data = None
-		self._intRange = []		
-		#self._intPointX = 0
-		#self._intPointY = 0 
-		#self._intX = []
-		#self._intY = []
+		self._intRange = []
 		self.n_clicks = 0
 		self._n = 0
 		self._xMin = 0
@@ -83,7 +77,6 @@ class PyLCICPMSCtrl:
 	def _clearForm(self):
 		''' clears check boxes and nulls data '''
 		self._view.clearChecks()
-		#self._data = None
 		self._view.buttons['Plot'].setEnabled(False)
 		self._view.integrateButtons['Integrate'].setEnabled(False)
 		self._view.integrateButtons['Integrate'].setStyleSheet("background-color: light gray")
@@ -91,22 +84,16 @@ class PyLCICPMSCtrl:
 		self._intRange = []
 		self._view.plotSpace.clear()
 		self._n = 0
-		#self._view.integrateButtons['115In Correction'].setEnabled(True)
-		#self._view.normAvIndium = -999.99
 
 	def _importAndActivatePlotting(self):
 		'''activates plotting function after data imported'''
-		#self._view.activeMetals.clear()
-		if self._view.activeMetals == []: 
+		if self._view.activeMetals == []:
 			for cbox in self._view.checkBoxes.values():
 				cbox.setChecked(True)
-		#self._model.importData()
-		#self._view.buttons['Plot'].setEnabled(True)
 		if self._view.listwidget.currentItem() is not None:
 			self._view.setDisplayText(self._view.listwidget.currentItem().text())
 			self._model.importData()
 			self._view.buttons['Plot'].setEnabled(True)
-		#self._view.activeMetals.append('115In')
 			self._makePlot()
 			self._view.buttons['Reset'].setEnabled(True)
 			self._view.listwidget.setFocus()

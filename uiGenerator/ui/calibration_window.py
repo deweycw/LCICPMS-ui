@@ -6,7 +6,6 @@ import pyqtgraph as pg
 from functools import partial
 import os
 import pandas as pd
-from functools import partial
 
 __version__ = '0.1'
 __author__ = 'Christian Dewey'
@@ -63,18 +62,9 @@ class Calibration(QWidget):
 
 	def _createResizeHandle(self):
 		handle = QSizeGrip(self)
-		#self.generalLayout.addWidget(handle)
 		self.generalLayout.addWidget(handle, 0, Qt.AlignBottom | Qt.AlignRight)
-	   # self.__corner = Qt.BottomRightCorner
-
 		self.resize(self.sizeHint())
-	'''
-	def _selectDirectory(self):
-		dialog = QFileDialog()
-		dialog.setWindowTitle("Select LC-ICPMS Directory")
-		dialog.setViewMode(QFileDialog.Detail)
-		self._view.homeDir = str(dialog.getExistingDirectory(self,"Select Directory:")) + '/'
-    '''
+
 	def _createPlot(self):
 		self.plotSpace = pg.PlotWidget()
 		self.plotSpace.setBackground('w')
@@ -95,15 +85,10 @@ class Calibration(QWidget):
 		stdlabel = 'Standard conc. (ppb):'
 		self.stdlabel.setText(stdlabel)
 
-		#self.ok_button = QPushButton('Enter')
-		#self.ok_button.setFixedSize(80, 40)
-		
 		self.stdEntryLayout.addWidget(self.stdlabel)
 		self.stdEntryLayout.addWidget(self.stdConcEntry)
-		#self.stdEntryLayout.addWidget(self.ok_button)
 
 		self.bottomLayout.addLayout(self.stdEntryLayout)
-		#self.generalLayout.addLayout(self.bottomLayout)
 
 
 
@@ -117,13 +102,12 @@ class Calibration(QWidget):
 		self.generalLayout.addWidget(self.display)
 
 	def _createCheckBoxes(self):
-		self.checkBoxes = []      
+		self.checkBoxes = []
 		optionsLayout = QHBoxLayout()
 		for m in self.metalOptions:
 			cbox = QCheckBox(m)
 			self.checkBoxes.append(cbox)
 			optionsLayout.addWidget(cbox)
-	   # optionwidget.stateChanged.connect(self.clickBox)
 		self.generalLayout.addLayout(optionsLayout)
 
 	def _createStandardsCheckBoxes(self):  
@@ -134,9 +118,6 @@ class Calibration(QWidget):
 			rbutton = QRadioButton(s)
 			self.stdsRadioButtons[s] = rbutton
 			rbuttonLayout.addWidget(rbutton, p[0], p[1])
-		#self.checkBoxes.append(self.intbox)
-		#self.standardsLayout.addWidget(self.intbox)
-   #    # optionwidget.stateChanged.connect(self.clickBox)
 		self.bottomLayout.addLayout(rbuttonLayout)
 
 	def _createstandardsLayout(self):
@@ -161,25 +142,7 @@ class Calibration(QWidget):
 		listBoxLayout.addWidget(self.listwidget)
 		self.listwidget.setMaximumHeight(250)
 		self.generalLayout.addLayout(listBoxLayout)
-	'''
-	def _createListbox(self):
-		
-		listBoxLayout = QGridLayout()
-		self.listwidget = QListWidget()
 
-		print(self._view.homeDir)
-		test_dir = self._view.homeDir 
-		#if test_dir != '':
-		i = 0
-		for name in os.listdir(test_dir):
-			if '.csv' in name: 
-				self.listwidget.insertItem(i, name)
-				i = i + 1
-
-		self.listwidget.clicked.connect(self.clicked)
-		listBoxLayout.addWidget(self.listwidget)
-		self.generalLayout.addLayout(listBoxLayout)
-	'''
 	def _createButtons(self):
 		"""Create the buttons."""
 		self.buttons = {}

@@ -1,5 +1,4 @@
 import pandas as pd
-#import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 from matplotlib.ticker import (MultipleLocator, MaxNLocator,PercentFormatter)
@@ -25,7 +24,6 @@ class plotChroma:
 		chromaplots = []
 		for m in self.activeMetals:
 			icpms_time = self.icpms_data['Time ' + m] / 60
-			#print(icpms_time.head())
 			icpms_signal = self.icpms_data[m] / 1000
 			self.max_icp = max(icpms_signal)
 			msize = len(m)
@@ -34,13 +32,7 @@ class plotChroma:
 			self._view.plotSpace.setBackground('w')
 			pen = color_dict[m]
 			self._view.plotSpace.addLegend(offset = [-1,1])
-			#chromaPlot = pg.PlotItem(icpms_time, icpms_signal,pen=pen,width = 2,name = m)
-			#chromaPlot.setYRange(self.min_icp,self.max_icp*1.1,padding = None)
 			chromaPlot = self._view.plotSpace.plot(icpms_time, icpms_signal,pen=pen,width = 2,name = m)
-			#viewPlot = self._view.plotSpace.addItem(chromaPlot)
-
-			#self._view.plotSpace.plot(icpms_time, icpms_signal,pen=pen,width = 2,name = m)
-			#chromaplots.append(chromaPlot)
 		return chromaPlot
 
 

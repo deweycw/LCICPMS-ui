@@ -6,7 +6,6 @@ import pyqtgraph as pg
 from functools import partial
 import os
 import pandas as pd
-from functools import partial
 
 __version__ = '0.1'
 __author__ = 'Christian Dewey'
@@ -57,20 +56,9 @@ class PyLCICPMSUi(QMainWindow):
 
 	def _createResizeHandle(self):
 		handle = QSizeGrip(self)
-		#self.generalLayout.addWidget(handle)
 		self.generalLayout.addWidget(handle, 0, Qt.AlignBottom | Qt.AlignRight)
-	   # self.__corner = Qt.BottomRightCorner
-
 		self.resize(self.sizeHint())
 
-	   # self.__updatePos()
-	'''
-	def _selectDirectory(self):
-		dialog = QFileDialog()
-		dialog.setWindowTitle("Select LC-ICPMS Directory")
-		dialog.setViewMode(QFileDialog.Detail)      
-		self.homeDir = str(dialog.getExistingDirectory(self,"Select Directory:")) + '/'
-	'''
 	def _createPlot(self):
 		self.plotSpace = pg.PlotWidget()
 		self.plotSpace.setBackground('w')
@@ -97,19 +85,17 @@ class PyLCICPMSUi(QMainWindow):
 		self.generalLayout.addWidget(self.display)
 
 	def _createCheckBoxes(self):
-		# Add some checkboxes to the layout  
-		self.checkBoxes = {}      
+		# Add some checkboxes to the layout
+		self.checkBoxes = {}
 		optionsLayout = QHBoxLayout()
 		for m in self.metalOptions:
 			cbox = QCheckBox(m)
 			self.checkBoxes[m] = cbox
 			optionsLayout.addWidget(cbox)
-	   # optionwidget.stateChanged.connect(self.clickBox)
 		self.generalLayout.addLayout(optionsLayout)
 
 	def _createIntegrateCheckBoxes(self):
-		# Add some checkboxes to the layout  
-		#self.integrateBox= []      
+		# Add some checkboxes to the layout
 		self.integrateLayout = QHBoxLayout()
 		checkboxLayout =QVBoxLayout()
 		self.intbox = QCheckBox('Select integration range?')
@@ -155,26 +141,8 @@ class PyLCICPMSUi(QMainWindow):
 		self.calib_label.setAlignment(Qt.AlignRight)
 		label_text = 'No calibration'
 		self.calib_label.setText(label_text)
-		#label_text = 
-		self.intButtonLayout.addWidget(self.calib_label,1,3)	
-	'''
-	def _createListbox(self):
-	
-		listBoxLayout = QGridLayout()
-		self.listwidget = QListWidget()
+		self.intButtonLayout.addWidget(self.calib_label,1,3)
 
-		test_dir = self.homeDir #'/Users/christiandewey/presentations/DOE-PI-22/day6/day6/'
-		i = 0
-		for name in os.listdir(test_dir):
-			if '.csv' in name: 
-				self.listwidget.insertItem(i, name)
-				i = i + 1
-
-		self.listwidget.clicked.connect(self.clicked)
-		listBoxLayout.addWidget(self.listwidget)
-		self.listwidget.setMaximumHeight(250)
-		self.generalLayout.addLayout(listBoxLayout)
-	'''
 	def _createButtons(self):
 		"""Create the buttons."""
 		self.buttons = {}

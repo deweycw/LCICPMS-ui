@@ -10,11 +10,10 @@ import pyqtgraph as pg
 from functools import partial
 import os
 import pandas as pd
-from functools import partial
 import seaborn as sns
 import csv
-from .chroma import *
-from .pgChroma import *
+from ..plotting.static import ICPMS_Data_Class
+from ..plotting.interactive import plotChroma
 
 __version__ = '0.1'
 __author__ = 'Christian Dewey'
@@ -42,13 +41,32 @@ class LICPMSfunctions:
 		print(self._view.listwidget.currentItem().text())
 		if self._view.listwidget.currentItem() is not None:
 			self.fdir = self._view.homeDir + self._view.listwidget.currentItem().text()
-			self._data = pd.read_csv(self.fdir,sep=';',skiprows = 0, header = 1)
+			try:
+				self._data = pd.read_csv(self.fdir,sep=';',skiprows = 0, header = 1)
+			except FileNotFoundError:
+				print(f'Error: File not found: {self.fdir}')
+				raise
+			except pd.errors.ParserError as e:
+				print(f'Error parsing CSV file {self.fdir}: {e}')
+				raise
+			except Exception as e:
+				print(f'Error reading file {self.fdir}: {e}')
+				raise
 
 	def importData_generic(self,fdir):
 		'''imports LCICPMS .csv file'''
-		data = pd.read_csv(fdir,sep=';',skiprows = 0, header = 1)
-
-		return data 
+		try:
+			data = pd.read_csv(fdir,sep=';',skiprows = 0, header = 1)
+			return data
+		except FileNotFoundError:
+			print(f'Error: File not found: {fdir}')
+			raise
+		except pd.errors.ParserError as e:
+			print(f'Error parsing CSV file {fdir}: {e}')
+			raise
+		except Exception as e:
+			print(f'Error reading file {fdir}: {e}')
+			raise 
 
 	def plotActiveMetalsMP(self):
 		'''plots active metals for selected file'''
