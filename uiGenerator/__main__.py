@@ -1,8 +1,8 @@
 """Entry point for LC-ICP-MS UI application."""
 
 import sys
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QApplication
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QApplication
 
 from .ui.main_window import PyLCICPMSUi
 from .controllers.main_controller import PyLCICPMSCtrl
@@ -32,7 +32,7 @@ def main():
 
     # Execute the main loop
     if (sys.flags.interactive != 1) or not hasattr(Qt, 'PYQT_VERSION'):
-        sys.exit(app.exec_())
+        sys.exit(app.exec())
 
 
 if __name__ == '__main__':

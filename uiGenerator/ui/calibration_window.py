@@ -1,6 +1,6 @@
 import sys 
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import * 
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import * 
 from pyqtgraph import PlotWidget, plot
 import pyqtgraph as pg
 from functools import partial
@@ -62,7 +62,7 @@ class Calibration(QWidget):
 
 	def _createResizeHandle(self):
 		handle = QSizeGrip(self)
-		self.generalLayout.addWidget(handle, 0, Qt.AlignBottom | Qt.AlignRight)
+		self.generalLayout.addWidget(handle, 0, Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignRight)
 		self.resize(self.sizeHint())
 
 	def _createPlot(self):
@@ -79,7 +79,7 @@ class Calibration(QWidget):
 		self.stdConcEntry = QLineEdit()
 		self.stdConcEntry.setFixedHeight(35)
 		self.stdConcEntry.setFixedWidth(100)
-		self.stdConcEntry.setAlignment(Qt.AlignRight)
+		self.stdConcEntry.setAlignment(Qt.AlignmentFlag.AlignRight)
 		#self.standardsLayout.addRow("Enter standard concentration:", self.stdConcEntry)
 		self.stdlabel = QLabel()
 		stdlabel = 'Standard conc. (ppb):'
@@ -97,7 +97,7 @@ class Calibration(QWidget):
 		# Create the display widget
 		self.display = QLineEdit()
 		self.display.setFixedHeight(35)
-		self.display.setAlignment(Qt.AlignRight)
+		self.display.setAlignment(Qt.AlignmentFlag.AlignRight)
 		self.display.setReadOnly(True)
 		self.generalLayout.addWidget(self.display)
 
@@ -179,15 +179,15 @@ class Calibration(QWidget):
 	def clearChecks(self):
 		"""Clear the display."""
 		for cbox in self.checkBoxes:
-			cbox.setCheckState(Qt.Unchecked)
+			cbox.setCheckState(Qt.CheckState.Unchecked)
 
 	def clickBox(self, cbox, state):
-		if state == Qt.Checked:
+		if state == Qt.CheckState.Checked:
 			print('checked: ' + cbox.text())
 			self.activeMetals.append(cbox.text())
 		   # print(self.activeMetals)
 			return self.activeMetals
-		elif state == Qt.Unchecked:
+		elif state == Qt.CheckState.Unchecked:
 			print('Unchecked: ' + cbox.text())
 			self.activeMetals.remove(cbox.text())
 			#print(self.activeMetals)

@@ -174,6 +174,6 @@ Project Link: [https://github.com/deweycw/LCICPMS-ui](https://github.com/deweycw
 
 ## Acknowledgments
 
-- PyQt5 for the GUI framework
+- PyQt6 for the GUI framework
 - PyQtGraph for interactive plotting
 - scikit-learn for calibration curve fitting
