@@ -4,9 +4,8 @@ Checks GitHub Releases for new versions
 """
 
 import requests
-import json
 from packaging import version as pkg_version
-from PyQt6.QtWidgets import QMessageBox, QDialog, QVBoxLayout, QLabel, QPushButton, QTextEdit, QHBoxLayout
+from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QTextEdit, QHBoxLayout
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 import webbrowser
 
@@ -19,6 +18,10 @@ class UpdateCheckThread(QThread):
     """Background thread for checking updates without blocking UI"""
     update_found = pyqtSignal(dict)
     check_complete = pyqtSignal(bool)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setTerminationEnabled(True)
 
     def run(self):
         """Check for updates in background"""
@@ -195,7 +198,7 @@ def check_updates_on_startup(parent=None, silent=False):
     Returns:
         UpdateCheckThread: The update check thread (can be used to connect signals)
     """
-    thread = UpdateCheckThread()
+    thread = UpdateCheckThread(parent)
 
     def on_update_found(update_info):
         show_update_dialog(update_info, parent)
@@ -204,9 +207,12 @@ def check_updates_on_startup(parent=None, silent=False):
         if not silent and success:
             # Could show "You're up to date" message
             pass
+        # Clean up thread after completion
+        thread.deleteLater()
 
     thread.update_found.connect(on_update_found)
     thread.check_complete.connect(on_check_complete)
+    thread.finished.connect(thread.deleteLater)  # Ensure cleanup
     thread.start()
 
     return thread

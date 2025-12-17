@@ -39,6 +39,7 @@ class PyLCICPMSCtrl:
 		self._xMin = 0
 		self._xMax = 0
 		self.button_is_checked = False
+		self._update_thread = None  # Store update checker thread
 
 		# Connect signals and slots
 		self._connectSignals()
@@ -228,7 +229,8 @@ class PyLCICPMSCtrl:
 		"""Check for updates on startup"""
 		try:
 			from ..utils.update_checker import check_updates_on_startup
-			check_updates_on_startup(parent=self._view, silent=True)
+			self._update_thread = check_updates_on_startup(parent=self._view, silent=True)
+			# Store thread to prevent garbage collection
 		except ImportError:
 			# Update checker not available (might be in development mode)
 			pass
