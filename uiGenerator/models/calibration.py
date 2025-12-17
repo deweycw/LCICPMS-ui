@@ -1,6 +1,6 @@
 import sys 
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import * 
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import * 
 from pyqtgraph import PlotWidget, plot
 import pyqtgraph as pg
 from functools import partial
@@ -40,15 +40,20 @@ class CalibrateFunctions:
 		fdir = self._calview.calibrationDir + self._calview.listwidget.currentItem().text()
 		self._data = pd.read_csv(fdir,sep=';',skiprows = 0, header = 1)
 
+		if self._calview.metals_in_stdfile == []:
+			for c in self._data.columns:
+				if 'Time' in c:
+					ic = c.split(' ')[1]
+					self._calview.metals_in_stdfile.append(ic)
 	def plotActiveMetals(self):
 		'''plots active metals for selected file'''
-		self._calview.chroma = plotChroma(self._calview, self._calview.metalOptions, self._data, self._calview.activeMetals)._plotChroma()
+		self._calview.chroma = plotChroma(self._calview, self._calview.metals_in_stdfile, self._data, self._calview.metals_in_stdfile)._plotChroma()
 
 	def integrate(self, intRange):
 		'''integrates over specified x range'''
 		self.intRange = intRange
 		pa_dict = {}
-		for metal in self._calview.activeMetals:
+		for metal in self._calview.metals_in_stdfile:
 			time = self._data['Time ' + metal] / 60
 			range_min = self.intRange[0]
 			range_max = self.intRange[1]
@@ -58,14 +63,9 @@ class CalibrateFunctions:
 			i_tmax = int(np.where(abs(time - range_max) == max_delta )[0][0])
 			minval = self._data.iloc[i_tmin]
 			minval = minval['Time ' + metal]
-			#print( i_tmin, minval/60, range_min)
 
 			maxval = self._data.iloc[i_tmax]
 			maxval = maxval['Time ' + metal]
-			#print( i_tmax, maxval/60, range_max)
-
-			icpms_dataToSum = self._data[metal].iloc[i_tmin:i_tmax]
-			#print(icpms_dataToSum)
 
 			me_col_ind = self._data.columns.get_loc(metal)
 			summed_area = 0
@@ -75,8 +75,6 @@ class CalibrateFunctions:
 				min_height = min([icp_1,icp_2])
 				max_height = max([icp_1,icp_2])
 				timeDelta = self._data.iloc[i+1,me_col_ind - 1] - self._data.iloc[i,me_col_ind - 1] # seconds; time is always to left of metal signal
-				#print(i, i+1, timeDelta)
-				#print(min_height, max_height)
 				rect_area = timeDelta * min_height
 				top_area = timeDelta * (max_height - min_height) * 0.5
 				An = rect_area + top_area
@@ -109,7 +107,7 @@ class CalibrateFunctions:
 	def calcLinearRegression(self):
 		calCurve_dict = {}
 		saveDict = {}
-		metals = self._calview.activeMetals
+		metals = self._calview.metals_in_stdfile
 		blank_value = 0
 		blank_dict = {}
 

@@ -19,7 +19,13 @@ class plotChroma:
 	def _plotChroma(self):
 		colors = sns.color_palette(n_colors = len(self.metalList),as_cmap = True)
 		c_keys = self.metalList
-		color_dict = {c_keys[i]: colors[i] for i in range(len(c_keys))}
+		color_dict = {c_keys[i]: None for i in range(len(c_keys))}
+
+		for i in range(len(c_keys)):
+			if i < 10:
+				color_dict[c_keys[i]] = colors[i]
+			else:
+				color_dict[c_keys[i]] = 'gray'
 		self._view.plotSpace.clear()
 		chromaplots = []
 		for m in self.activeMetals:
