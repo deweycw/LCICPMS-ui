@@ -1,15 +1,27 @@
 # LC-ICP-MS Data Viewer
 
-A PyQt5-based desktop application for analyzing and visualizing LC-ICP-MS (Liquid Chromatography Inductively Coupled Plasma Mass Spectrometry) chromatography data.
+A PyQt6-based desktop application for analyzing and visualizing LC-ICP-MS (Liquid Chromatography Inductively Coupled Plasma Mass Spectrometry) chromatography data.
 
 ## Features
 
+### Core Functionality
 - **Interactive Data Visualization**: Real-time chromatogram plotting using PyQtGraph
 - **Multi-Metal Analysis**: Simultaneous analysis of multiple metal isotopes (Mn, Fe, Co, Ni, Cu, Zn, Cd, Pb)
 - **Peak Integration**: Automatic and manual peak area calculation with baseline subtraction
 - **Calibration Curves**: Linear regression-based calibration with R² and MSE metrics
-- **Data Export**: Export results to CSV format with timestamps
 - **115In Normalization**: Optional indium correction for signal drift
+
+### File Comparison (v1.0.0)
+- **Compare up to 12 files** simultaneously with color-coded traces
+- **Custom legend labels**: Double-click to edit file labels in the plot legend
+- **Dynamic updates**: Plot automatically refreshes as files are added/removed
+- **Dedicated comparison interface** with intuitive Add/Remove controls
+
+### Enhanced Export (v1.0.0)
+- **Flexible export options**: Choose to export plot image, data CSV, and/or Python script
+- **Exact reproduction**: Exported plots match your current zoom level and view
+- **Publication-ready**: High-DPI PNG/SVG/PDF output with proper formatting
+- **Standalone scripts**: Generated Python scripts recreate plots with minimal dependencies
 
 ## Requirements
 
@@ -19,59 +31,75 @@ A PyQt5-based desktop application for analyzing and visualizing LC-ICP-MS (Liqui
 
 ## Quick Start
 
-### Download Standalone Executable (Recommended)
+### Installation from Source (Recommended)
 
-**No Python installation required!**
-
-Download the latest release for your platform:
-- **Windows**: [LCICPMS-ui-windows.zip](https://github.com/deweycw/LCICPMS-ui/releases/latest)
-- **macOS**: [LCICPMS-ui-macos.dmg](https://github.com/deweycw/LCICPMS-ui/releases/latest)
-- **Linux**: [LCICPMS-ui-linux.tar.gz](https://github.com/deweycw/LCICPMS-ui/releases/latest)
-
-The application will automatically check for updates on startup.
-
-### Installation from Source
+**For maximum security and transparency, we recommend running from source:**
 
 ```bash
-# Clone the repository
+# 1. Clone the repository
 git clone https://github.com/deweycw/LCICPMS-ui.git
 cd LCICPMS-ui
 
-# Create and activate virtual environment
+# 2. Create and activate virtual environment (recommended)
 python3 -m venv env
-source env/bin/activate  # Windows: .\env\Scripts\activate
+source env/bin/activate  # On Windows: .\env\Scripts\activate
 
-# Install the package
-pip install -e .
+# 3. Install dependencies
+pip install -r requirements.txt
+
+# 4. Run the application
+python run_lcicpms.py
 ```
 
-### Running the Application
-
+**Alternative**: Install as package
 ```bash
-# After installation, run from anywhere
+pip install -e .
 lcicpms-ui
 ```
 
-**Alternative**: Run as Python module
-```bash
-python -m uiGenerator
-```
+### Security Note
+
+> ⚠️ **About Standalone Executables**: This application is currently distributed as open-source Python code. If you download pre-built executables (when available), please note:
+>
+> - Windows SmartScreen may show warnings for unsigned applications
+> - This is normal for applications without expensive code-signing certificates
+> - **We recommend running from source** to verify the code yourself
+> - Always download from official GitHub releases only
+> - Check SHA256 checksums before running (provided in releases)
+>
+> Running from source (as shown above) is the most secure option and allows you to inspect the code before execution.
 
 ## Usage
+
+### Basic Workflow
 
 1. **Select Directory**: Click "Directory" to choose folder containing CSV data files
 2. **Load Data**: Select a CSV file from the list
 3. **Select Elements**: Click "Select Elements" to open periodic table and choose elements to analyze
-4. **View Chromatogram**: Interactive plot displays automatically
-5. **Integrate Peaks**:
-   - Check "Select integration range?"
-   - Click plot to set start/end points
-   - Click "Integrate" to calculate peak areas
-6. **Calibration** (optional):
-   - Click "Calibrate" to open calibration window
-   - Select directory with standard samples
-   - Integrate peaks for each standard
-   - Click "Calculate Curve" to generate calibration
+4. **View Chromatogram**: Interactive plot displays automatically with zoom/pan controls
+5. **Export Plot**: Click "Export Plot" to save as PNG/SVG/PDF with optional data and script
+
+### File Comparison Mode
+
+1. **Select one element** from the periodic table (comparison mode requires exactly 1 element)
+2. **Add files**: Select files from the main list and click "Add →" (up to 12 files)
+3. **Customize labels** (optional): Double-click files in the comparison list to edit legend labels
+4. **Activate comparison**: Click the "Compare" button
+5. **Dynamic updates**: Add or remove files - the plot updates automatically!
+
+### Peak Integration
+
+1. **Enable selection**: Check "Select integration range?"
+2. **Mark range**: Click plot to set start and end points
+3. **Integrate**: Click "Integrate" to calculate peak areas
+4. **Baseline subtraction** (optional): Check "Baseline subtraction?" for background correction
+
+### Calibration
+
+1. Click "Calibrate" to open calibration window
+2. Select directory with standard samples
+3. Integrate peaks for each standard concentration
+4. Click "Calculate Curve" to generate calibration with R² and MSE metrics
 
 ## Data Format
 
