@@ -1,47 +1,218 @@
+# LC-ICP-MS Data Viewer
 
-# LCICPMS-ui installation
+A PyQt5-based desktop application for analyzing and visualizing LC-ICP-MS (Liquid Chromatography Inductively Coupled Plasma Mass Spectrometry) chromatography data.
 
-Note: The GUI currently only runs on Python 3.6. Download and install Python 3.6 here: https://www.python.org/downloads/release/python-365/
+## Features
 
-1)	clone the UI repository: 
+- **Interactive Data Visualization**: Real-time chromatogram plotting using PyQtGraph
+- **Multi-Metal Analysis**: Simultaneous analysis of multiple metal isotopes (Mn, Fe, Co, Ni, Cu, Zn, Cd, Pb)
+- **Peak Integration**: Automatic and manual peak area calculation with baseline subtraction
+- **Calibration Curves**: Linear regression-based calibration with R² and MSE metrics
+- **Data Export**: Export results to CSV format with timestamps
+- **115In Normalization**: Optional indium correction for signal drift
 
-	a.	Open a Terminal (Mac) or Powershell (Windows) and navigate to the directory where you want to save the gui code 
+## Requirements
 
-	b.	Clone a branch of the repo by entering the following line in the shell:
+- **Python**: 3.8 or higher
+- **Operating Systems**: Windows, macOS, Linux
+- **Dependencies**: See `requirements.txt`
 
-		git clone --single-branch --branch <name> https://github.com/deweycw/LCICPMS-ui.git
+## Quick Start
 
-		* N.B. Typically you will want to clone the ‘main’ branch (i.e., set <name> to main)
+### Download Standalone Executable (Recommended)
 
+**No Python installation required!**
 
-2) create and activate a virtual python3.6 environment:
+Download the latest release for your platform:
+- **Windows**: [LCICPMS-ui-windows.zip](https://github.com/deweycw/LCICPMS-ui/releases/latest)
+- **macOS**: [LCICPMS-ui-macos.dmg](https://github.com/deweycw/LCICPMS-ui/releases/latest)
+- **Linux**: [LCICPMS-ui-linux.tar.gz](https://github.com/deweycw/LCICPMS-ui/releases/latest)
 
-	c.	within the LCICPMS-ui directory, run the following from the command line: 
+The application will automatically check for updates on startup.
 
-		python3.6 -m venv env
+### Installation from Source
 
-	d.	to activate:            
-    	
-    	in MacOS: source env/bin/activate
-    	
-    	in Windows: .\env\Scripts\activate 
-		if you see an error in Windows about the Execution Policy, run the following as an administrator: Set-ExecutionPolicy AllSigned
+```bash
+# Clone the repository
+git clone https://github.com/deweycw/LCICPMS-ui.git
+cd LCICPMS-ui
 
-		note: to deactivate the virtual environment, simply run: 	deactivate
+# Create and activate virtual environment
+python3 -m venv env
+source env/bin/activate  # Windows: .\env\Scripts\activate
 
-3)	install required packages listed in 'requirements-pc.txt' (for PC users) or ‘requirements-mac.txt’ (for Mac users) into virtual env:
+# Install the package
+pip install -e .
+```
 
-	a.	open a Terminal (Mac) or Powershell (Windows) and activate virtual env for LCICPMS-ui (if not already activated)
+### Running the Application
 
-	b.	run: pip install -r requirements-mac.txt OR pip install -r requirements-pc.txt
+```bash
+# After installation, run from anywhere
+lcicpms-ui
+```
 
-# Starting the GUI
+**Alternative**: Run as Python module
+```bash
+python -m uiGenerator
+```
 
-1)	Open a Terminal (Mac) or Powershell (Windows)and navigate to the folder containing the virtual environment and activate the virtual env
+## Usage
 
-2)	Navigate to the folder containing clientRun.py (depending on where you installed your virtual environment, this may be the folder you are already in)
+1. **Select Directory**: Click "Directory" to choose folder containing CSV data files
+2. **Load Data**: Select a CSV file from the list
+3. **Select Elements**: Click "Select Elements" to open periodic table and choose elements to analyze
+4. **View Chromatogram**: Interactive plot displays automatically
+5. **Integrate Peaks**:
+   - Check "Select integration range?"
+   - Click plot to set start/end points
+   - Click "Integrate" to calculate peak areas
+6. **Calibration** (optional):
+   - Click "Calibrate" to open calibration window
+   - Select directory with standard samples
+   - Integrate peaks for each standard
+   - Click "Calculate Curve" to generate calibration
 
-3)	Run the following line within the activated virtual environment: 
+## Data Format
 
-	python clientRun.py
+Input CSV files should have semicolon-separated values with format:
+```
+Header line
+Time 56Fe;56Fe;Time 60Ni;60Ni;...
+0.0;1000;0.0;1200;...
+0.1;1050;0.1;1250;...
+```
 
+## Development
+
+### Setup Development Environment
+
+```bash
+# Install with development dependencies
+pip install -e ".[dev]"
+
+# Run tests
+pytest
+
+# Run linting
+black .
+flake8 uiGenerator tests --max-line-length=120
+```
+
+### Project Structure
+
+```
+LCICPMS-ui/
+├── uiGenerator/              # Main package
+│   ├── ui/                   # User interface components
+│   │   ├── main_window.py
+│   │   └── calibration_window.py
+│   ├── controllers/          # Application controllers
+│   │   ├── main_controller.py
+│   │   └── calibration_controller.py
+│   ├── models/               # Business logic
+│   │   ├── data_processor.py
+│   │   └── calibration.py
+│   └── plotting/             # Visualization utilities
+│       ├── interactive.py    # PyQtGraph plots
+│       ├── static.py         # Matplotlib plots
+│       └── stacked.py
+├── tests/                    # Test suite
+├── setup.py                  # Package configuration
+├── requirements.txt          # Dependencies
+└── README.md
+```
+
+### Running Tests
+
+```bash
+# Run all tests
+pytest
+
+# Run with coverage
+pytest --cov=uiGenerator --cov-report=term
+
+# Run specific test file
+pytest tests/test_data_processor.py
+```
+
+## Output Files
+
+The application generates:
+- **Concentration files**: `concentrations_uM_all.csv` - Metal concentrations in µM
+- **Peak area files**: `peakareas_counts_all.csv` - Integrated peak areas
+- **Calibration files**: `calibration_curve.calib` - JSON format calibration data
+- **Calibration plots**: `{metal}_calibration.png` - Visualization of calibration curves
+
+## Troubleshooting
+
+### Windows Execution Policy Error
+If you encounter an error when activating the virtual environment on Windows:
+```powershell
+Set-ExecutionPolicy AllSigned
+```
+Run this command as Administrator, then retry activation.
+
+### Import Errors
+Ensure the package is installed:
+```bash
+pip install -e .
+```
+
+### GUI Not Displaying
+Make sure PyQt5 is properly installed:
+```bash
+pip install --force-reinstall PyQt5
+```
+
+## Building and Distribution
+
+### For End Users
+
+Download pre-built executables from the [Releases page](https://github.com/deweycw/LCICPMS-ui/releases/latest).
+
+### For Developers
+
+See detailed build instructions:
+- **[DISTRIBUTION.md](DISTRIBUTION.md)** - Quick start guide for building and releasing
+- **[BUILDING.md](BUILDING.md)** - Comprehensive build documentation
+
+**Quick build:**
+```bash
+# Linux/macOS
+./build.sh
+
+# Windows
+build.bat
+```
+
+**Create a release:**
+```bash
+git tag v0.3.0
+git push origin v0.3.0
+# GitHub Actions automatically builds and publishes
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is available for scientific research and educational purposes.
+
+## Contact
+
+Christian Dewey - [@deweycw](https://github.com/deweycw)
+
+Project Link: [https://github.com/deweycw/LCICPMS-ui](https://github.com/deweycw/LCICPMS-ui)
+
+## Acknowledgments
+
+- PyQt6 for the GUI framework
+- PyQtGraph for interactive plotting
+- scikit-learn for calibration curve fitting
