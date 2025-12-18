@@ -66,15 +66,44 @@ class PTCtrl:
 			self._mainview.periodicTableDict[element][3] = 0
 
 	def _resetPeriodicTable(self):
+		"""Select all available elements in the periodic table."""
 		self._mainview.activeElements = self._mainview._elements_in_file.copy()
-		for element in self._mainview.activeElements:
-			buttonkey = self._mainview.ptDictEls[self._mainview.rev[element]]
-			self._view.periodicTable[buttonkey].setStyleSheet('background-color : yellow')
-			self._mainview.periodicTableDict[buttonkey][3] = 1
+
+		# Iterate through all periodic table buttons
+		for buttonkey, button in self._view.periodicTable.items():
+			element_symbol = buttonkey.split('\n')[1]  # Extract element symbol (e.g., "Fe" from "56\nFe")
+
+			# Check if this element has any analytes in the active elements
+			if element_symbol in self._mainview._analytes_by_element:
+				available_analytes = self._mainview._analytes_by_element[element_symbol]
+				# Check if any of the available analytes are in activeElements
+				if any(analyte in self._mainview.activeElements for analyte in available_analytes):
+					self._view.periodicTable[buttonkey].setStyleSheet('background-color : yellow')
+					self._mainview.periodicTableDict[buttonkey][3] = 1
+				else:
+					# Reset to original color if no analytes are active
+					col = self._mainview.periodicTableDict[buttonkey][2]
+					self._view.periodicTable[buttonkey].setStyleSheet('background-color : ' + col)
+					self._mainview.periodicTableDict[buttonkey][3] = 0
 
 	def _format_analyte_display(self, analyte):
-		"""Format analyte string with superscripts, subscripts, and parentheses for pipe-separated values."""
+		"""Format analyte string with Unicode superscripts, subscripts, and parentheses for pipe-separated values."""
 		import re
+
+		# Unicode superscript mapping
+		superscript_map = {'0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴',
+		                   '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹'}
+		# Unicode subscript mapping
+		subscript_map = {'0': '₀', '1': '₁', '2': '₂', '3': '₃', '4': '₄',
+		                 '5': '₅', '6': '₆', '7': '₇', '8': '₈', '9': '₉'}
+
+		def to_superscript(text):
+			"""Convert digits to Unicode superscripts."""
+			return ''.join(superscript_map.get(c, c) for c in text)
+
+		def to_subscript(text):
+			"""Convert digits to Unicode subscripts."""
+			return ''.join(subscript_map.get(c, c) for c in text)
 
 		def format_part(part):
 			"""Format a single analyte part, handling multiple elements separated by periods."""
@@ -91,14 +120,14 @@ class PTCtrl:
 				if match:
 					isotope = match.group(1)
 					element = match.group(2)
-					result += f'<sup>{isotope}</sup>{element}'
+					result += to_superscript(isotope) + element
 					remaining = remaining[len(match.group(0)):]
 				else:
 					# Check if there's a number (stoichiometry)
 					match = re.match(r'^(\d+)', remaining)
 					if match:
 						number = match.group(1)
-						result += f'<sub>{number}</sub>'
+						result += to_subscript(number)
 						remaining = remaining[len(number):]
 					else:
 						# Just add the character as-is
@@ -113,9 +142,9 @@ class PTCtrl:
 
 		# Join with parentheses if there are multiple parts (no spaces)
 		if len(formatted_parts) == 2:
-			return f'{formatted_parts[0]}({formatted_parts[1]})'
+			return f'{formatted_parts[0]} ({formatted_parts[1]})'
 		elif len(formatted_parts) > 2:
-			return f'{formatted_parts[0]}({",".join(formatted_parts[1:])})'
+			return f'{formatted_parts[0]} ({",".join(formatted_parts[1:])})'
 		else:
 			return formatted_parts[0]
 
@@ -158,7 +187,7 @@ class PTCtrl:
 			formatted_text = self._format_analyte_display(analyte)
 			cb = QCheckBox()
 			cb.setText(formatted_text)
-			cb.setTextFormat(Qt.TextFormat.RichText)
+			# Note: QCheckBox doesn't support setTextFormat like QLabel does
 			cb.setChecked(analyte in self._mainview.activeElements)
 			checkboxes[analyte] = cb
 			layout.addWidget(cb)

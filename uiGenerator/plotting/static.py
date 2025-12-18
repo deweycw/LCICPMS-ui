@@ -29,17 +29,17 @@ class ICPMS_Data_Class:
 		lines = []
 		for m in self.elements:
 			icpms_time = self.icpms_data['Time ' + m] / 60
-			icpms_signal = self.icpms_data[m] / 1000
+			icpms_signal = self.icpms_data[m]  # Keep in cps, don't divide by 1000
 			formatted_label = format_analyte_latex(m)
-			p, = host.plot(icpms_time, icpms_signal, color = color_dict[m], linewidth  = 0.75, label=formatted_label)
+			p, = host.plot(icpms_time, icpms_signal, color = color_dict[m], linewidth=2.5, label=formatted_label)
 			if icpms_max < max(icpms_signal):
 				icpms_max = 1.1 * max(icpms_signal)
 			lines.append(p)
 			labels.append(formatted_label)
 		
-		host.set_title(self.plt_title) 
-		host.set_xlabel("Retention time (min)")
-		host.set_ylabel('ICP-MS signal intensity (cps x 1000)')
+		host.set_title(self.plt_title)
+		host.set_xlabel("Time (min)", fontsize=12)
+		host.set_ylabel('Signal Intensity (cps)', fontsize=12)
 		
 		if self.max_icp == None:
 			self.max_icp = icpms_max

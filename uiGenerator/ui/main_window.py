@@ -47,12 +47,18 @@ class PyLCICPMSUi(QMainWindow):
 		self.singleOutputFile = False
 		self.baseSubtract = False
 
+		# File comparison mode (supports up to 12 files)
+		self.compareMode = False
+		self.comparisonFiles = []  # List of filenames
+		self.comparisonData = []  # List of dataframes
+		self.comparisonLabels = {}  # Dictionary mapping filename to custom legend label
+
 		# Periodic table data structures for PTBuilder
 		self._createPeriodicTableData()
 
+		self._createMenuBar()
 		self._createButtons()
 		self._createListbox()
-		self._createDisplay()
 		self._createPlot()
 		self._createIntegrateCheckBoxes()
 		self._createIntegrateLayout()
@@ -70,9 +76,63 @@ class PyLCICPMSUi(QMainWindow):
 	def _createPlot(self):
 		self.plotSpace = pg.PlotWidget()
 		self.plotSpace.setBackground('w')
-		styles = { 'font-size':'15px'}
-		self.plotSpace.setLabel('left', 'ICP-MS signal (1000s cps)', **styles)
-		self.plotSpace.setLabel('bottom', "Retention time (min)", **styles)
+
+		# Enhanced styling with darker text and larger font
+		styles = {'font-size': '16px', 'color': '#000'}
+		self.plotSpace.setLabel('left', 'Signal Intensity (cps)', **styles)
+		self.plotSpace.setLabel('bottom', 'Time (min)', **styles)
+
+		# Make axes and ticks darker and more visible
+		axis_pen = pg.mkPen(color='#000', width=2)
+		for axis in ['left', 'bottom', 'right', 'top']:
+			self.plotSpace.getAxis(axis).setPen(axis_pen)
+			self.plotSpace.getAxis(axis).setTextPen('#000')
+			# Increase tick font size and make darker
+			self.plotSpace.getAxis(axis).setStyle(tickFont=pg.QtGui.QFont('Arial', 12))
+
+		# Add custom tick formatter for y-axis to handle large values
+		left_axis = self.plotSpace.getAxis('left')
+
+		def custom_tick_strings(values, scale, spacing):
+			"""Custom formatter for y-axis: integers for < 10000, proper exponential notation for >= 10000."""
+			# Unicode superscript mapping
+			superscript_map = {'0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴',
+			                   '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹',
+			                   '-': '⁻', '+': '⁺'}
+
+			def to_superscript(text):
+				"""Convert text to Unicode superscripts."""
+				return ''.join(superscript_map.get(c, c) for c in str(text))
+
+			strings = []
+			for v in values:
+				if abs(v) >= 10000:
+					# Use proper mathematical exponential notation: 1×10⁴
+					import math
+					if v == 0:
+						strings.append('0')
+						continue
+
+					# Calculate exponent and mantissa
+					exponent = int(math.floor(math.log10(abs(v))))
+					mantissa = v / (10 ** exponent)
+
+					# Format mantissa (remove .0 if it's a whole number)
+					if mantissa == int(mantissa):
+						mantissa_str = str(int(mantissa))
+					else:
+						mantissa_str = f'{mantissa:.1f}'
+
+					# Create formatted string: mantissa × 10^exponent
+					exp_str = f'{mantissa_str}×10{to_superscript(exponent)}'
+					strings.append(exp_str)
+				else:
+					# Normal formatting for values < 10000 (up to 4 digits), no decimals
+					strings.append(f'{int(v)}')
+			return strings
+
+		# Apply custom tick formatter
+		left_axis.tickStrings = custom_tick_strings
 
 		# Enable mouse zoom: drag to create zoom box, right-click to reset view
 		self.plotSpace.setMouseEnabled(x=True, y=True)
@@ -80,8 +140,232 @@ class PyLCICPMSUi(QMainWindow):
 		vb.setMouseMode(pg.ViewBox.RectMode)  # Rectangular zoom mode
 		vb.enableAutoRange(enable=True)  # Auto-range on first plot
 
+		# Set axis ranges to not go below 0
+		vb.setLimits(xMin=0, yMin=0)
+		self.plotSpace.setXRange(0, 10, padding=0.02)  # Small padding to prevent cutoff
+		self.plotSpace.setYRange(0, 100, padding=0.05)  # 5% padding at top and bottom
+
+		# Add crosshair cursor with coordinates display
+		self._setupCrosshair()
+
+		# Create horizontal layout for plot and legend
+		plotLayout = QHBoxLayout()
+		plotLayout.setContentsMargins(5, 5, 5, 5)
+		plotLayout.setSpacing(15)  # Space between plot and legend
+		plotLayout.addWidget(self.plotSpace, stretch=4)
+
+		# Create separate legend panel
+		self._createLegendPanel()
+		plotLayout.addWidget(self.legendPanel, stretch=1)
+
+		# Create a container widget for plot + legend (needed for export)
+		self.plotContainer = QWidget()
+		self.plotContainer.setStyleSheet("background-color: white;")
+		self.plotContainer.setLayout(plotLayout)
+
 		self.chroma = self.plotSpace
-		self.generalLayout.addWidget(self.plotSpace)
+		self.generalLayout.addWidget(self.plotContainer)
+
+	def _createLegendPanel(self):
+		"""Create a separate panel for the legend with polished styling."""
+		self.legendPanel = QWidget()
+		self.legendPanel.setMinimumWidth(250)
+		self.legendPanel.setMaximumWidth(400)  # Increased to accommodate comparison mode labels
+
+		# Set white background and border for professional appearance
+		self.legendPanel.setStyleSheet("""
+			QWidget {
+				background-color: white;
+				border: 2px solid #000;
+				border-radius: 5px;
+			}
+		""")
+
+		legendLayout = QVBoxLayout()
+		legendLayout.setContentsMargins(12, 12, 12, 12)
+		legendLayout.setSpacing(8)
+		self.legendPanel.setLayout(legendLayout)
+
+		# Container for legend items (will be wrapped in scroll area if needed)
+		self.legendContainer = QWidget()
+		self.legendContainer.setStyleSheet("background-color: white;")
+		self.legendItemsLayout = QVBoxLayout()
+		self.legendItemsLayout.setSpacing(12)  # Increased spacing between items
+		self.legendItemsLayout.setContentsMargins(12, 12, 12, 12)
+		self.legendContainer.setLayout(self.legendItemsLayout)
+
+		# Store reference to layout so we can add scroll area later if needed
+		self.legendContentLayout = legendLayout
+		legendLayout.addWidget(self.legendContainer)
+
+		# Add spacer at bottom
+		legendLayout.addStretch()
+
+	def updateLegend(self, elements, color_dict):
+		"""Update the legend with current elements and colors."""
+		# Clear existing legend items
+		while self.legendItemsLayout.count():
+			item = self.legendItemsLayout.takeAt(0)
+			if item.widget():
+				item.widget().deleteLater()
+
+		# Check if we need a scroll area (more than 6 items)
+		needs_scroll = len(elements) > 6
+
+		# Remove existing scroll area or container from layout if present
+		# First, check what's currently in the layout and remove it
+		while self.legendContentLayout.count() > 0:  # No title anymore, so clear everything
+			item = self.legendContentLayout.takeAt(0)  # Remove first item (scroll area or container)
+			if item.widget():
+				widget = item.widget()
+				widget.setParent(None)  # Remove from parent instead of deleteLater
+
+		# Add new legend items with enhanced styling
+		from uiGenerator.utils.analyte_formatter import format_analyte_html
+		for element in elements:
+			itemWidget = QWidget()
+			itemWidget.setStyleSheet("""
+				QWidget {
+					background-color: white;
+					padding: 6px;
+					border-radius: 3px;
+				}
+				QWidget:hover {
+					background-color: #f0f0f0;
+				}
+			""")
+			itemLayout = QHBoxLayout()
+			itemLayout.setContentsMargins(6, 6, 6, 6)
+			itemLayout.setSpacing(10)
+			itemWidget.setLayout(itemLayout)
+
+			# Color indicator box with enhanced styling
+			colorBox = QLabel()
+			color = color_dict.get(element, (0.5, 0.5, 0.5))
+
+			# Convert color to RGB values
+			if isinstance(color, str):
+				# Handle string color names
+				if color == 'gray' or color == 'grey':
+					r, g, b = 128, 128, 128
+				else:
+					# Default for unknown string colors
+					r, g, b = 128, 128, 128
+			elif hasattr(color, '__iter__') and len(color) >= 3:
+				# Handle tuple/list of RGB values (0-1 range from seaborn)
+				r, g, b = int(color[0] * 255), int(color[1] * 255), int(color[2] * 255)
+			else:
+				# Default fallback
+				r, g, b = 128, 128, 128
+
+			colorBox.setStyleSheet(f"""
+				QLabel {{
+					background-color: rgb({r},{g},{b});
+					border: 2px solid #000;
+					border-radius: 2px;
+				}}
+			""")
+			colorBox.setFixedSize(18, 18)
+			itemLayout.addWidget(colorBox)
+
+			# Element label with formatted text and enhanced styling
+			formatted_name = format_analyte_html(element)
+			elementLabel = QLabel(formatted_name)
+			elementLabel.setStyleSheet("""
+				QLabel {
+					font-size: 13px;
+					font-weight: 500;
+					color: #000;
+					padding-left: 2px;
+					background-color: transparent;
+					border: none;
+				}
+			""")
+			elementLabel.setTextFormat(Qt.TextFormat.RichText)
+			# Don't wrap - use eliding instead for cleaner look
+			elementLabel.setWordWrap(False)
+			elementLabel.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+			elementLabel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+			# Set minimum width to prevent extreme shrinking
+			elementLabel.setMinimumWidth(150)
+			itemLayout.addWidget(elementLabel, stretch=1)
+
+			self.legendItemsLayout.addWidget(itemWidget)
+
+		# Wrap in scroll area if needed
+		if needs_scroll:
+			if not hasattr(self, 'legendScrollArea') or self.legendScrollArea is None:
+				self.legendScrollArea = QScrollArea()
+				self.legendScrollArea.setWidgetResizable(True)
+				self.legendScrollArea.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+				self.legendScrollArea.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+				self.legendScrollArea.setStyleSheet("""
+					QScrollArea {
+						background-color: white;
+						border: none;
+					}
+				""")
+			self.legendScrollArea.setWidget(self.legendContainer)
+			self.legendContentLayout.addWidget(self.legendScrollArea)
+		else:
+			# Add container directly without scroll area
+			self.legendScrollArea = None
+			self.legendContentLayout.addWidget(self.legendContainer)
+
+		# Add spacer back if it was removed
+		if self.legendContentLayout.count() < 2:
+			self.legendContentLayout.addStretch()
+
+	def _setupCrosshair(self):
+		"""Setup crosshair cursor and coordinates display."""
+		# Create crosshair lines
+		self.vLine = pg.InfiniteLine(angle=90, movable=False, pen=pg.mkPen('gray', width=1, style=Qt.PenStyle.DashLine))
+		self.hLine = pg.InfiniteLine(angle=0, movable=False, pen=pg.mkPen('gray', width=1, style=Qt.PenStyle.DashLine))
+		self.plotSpace.addItem(self.vLine, ignoreBounds=True)
+		self.plotSpace.addItem(self.hLine, ignoreBounds=True)
+
+		# Create text label for coordinates
+		self.coordLabel = pg.TextItem(anchor=(0, 1), color='black', fill=pg.mkBrush(255, 255, 255, 200))
+		self.plotSpace.addItem(self.coordLabel)
+
+		# Initially hide crosshair
+		self.vLine.setVisible(False)
+		self.hLine.setVisible(False)
+		self.coordLabel.setVisible(False)
+
+		# Connect mouse movement
+		self.plotSpace.scene().sigMouseMoved.connect(self._updateCrosshair)
+		self.proxy = pg.SignalProxy(self.plotSpace.scene().sigMouseMoved, rateLimit=60, slot=self._updateCrosshair)
+
+	def _updateCrosshair(self, evt):
+		"""Update crosshair position and coordinates display."""
+		# Get mouse position
+		if isinstance(evt, tuple):
+			pos = evt[0]
+		else:
+			pos = evt
+
+		if self.plotSpace.sceneBoundingRect().contains(pos):
+			mousePoint = self.plotSpace.plotItem.vb.mapSceneToView(pos)
+			x, y = mousePoint.x(), mousePoint.y()
+
+			# Update crosshair position
+			self.vLine.setPos(x)
+			self.hLine.setPos(y)
+
+			# Update coordinate label
+			self.coordLabel.setText(f'Time: {x:.2f} min\nIntensity: {y:.0f} cps')
+			self.coordLabel.setPos(x, y)
+
+			# Show crosshair
+			self.vLine.setVisible(True)
+			self.hLine.setVisible(True)
+			self.coordLabel.setVisible(True)
+		else:
+			# Hide crosshair when mouse leaves plot
+			self.vLine.setVisible(False)
+			self.hLine.setVisible(False)
+			self.coordLabel.setVisible(False)
 
 	def _createDirEntry(self):
 		self.DirEntry = QLineEdit()
@@ -90,14 +374,6 @@ class PyLCICPMSUi(QMainWindow):
 		self.topLayout.addRow("Enter directory:", self.DirEntry)
 		self.topLayout.addWidget(self.DirEntry)
 
-	def _createDisplay(self):
-		'''Create the display'''
-		# Create the display widget
-		self.display = QLineEdit()
-		self.display.setFixedHeight(35)
-		self.display.setAlignment(Qt.AlignmentFlag.AlignRight)
-		self.display.setReadOnly(True)
-		self.generalLayout.addWidget(self.display)
 
 	def _createIntegrateCheckBoxes(self):
 		# Add some checkboxes to the layout
@@ -144,11 +420,64 @@ class PyLCICPMSUi(QMainWindow):
 		self.generalLayout.addLayout(self.integrateLayout)
 
 	def _createListbox(self):
-	
-		listBoxLayout = QGridLayout()
+		"""Create file list and comparison list side by side."""
+		listBoxLayout = QHBoxLayout()
+
+		# Left side: Main file list
+		leftLayout = QVBoxLayout()
+		fileListLabel = QLabel("Data Files")
+		fileListLabel.setStyleSheet("font-weight: bold;")
+		leftLayout.addWidget(fileListLabel)
+
 		self.listwidget = QListWidget()
-		listBoxLayout.addWidget(self.listwidget)
 		self.listwidget.setMaximumHeight(250)
+		leftLayout.addWidget(self.listwidget)
+
+		listBoxLayout.addLayout(leftLayout)
+
+		# Middle: Transfer buttons
+		buttonLayout = QVBoxLayout()
+		buttonLayout.addStretch()
+
+		self.addToCompareBtn = QPushButton("Add →")
+		self.addToCompareBtn.setToolTip("Add selected file to comparison list")
+		self.addToCompareBtn.setMaximumWidth(80)
+		self.addToCompareBtn.setEnabled(False)
+		buttonLayout.addWidget(self.addToCompareBtn)
+
+		self.removeFromCompareBtn = QPushButton("← Remove")
+		self.removeFromCompareBtn.setToolTip("Remove selected file from comparison list")
+		self.removeFromCompareBtn.setMaximumWidth(80)
+		self.removeFromCompareBtn.setEnabled(False)
+		buttonLayout.addWidget(self.removeFromCompareBtn)
+
+		self.clearCompareBtn = QPushButton("Clear All")
+		self.clearCompareBtn.setToolTip("Clear all files from comparison list")
+		self.clearCompareBtn.setMaximumWidth(80)
+		self.clearCompareBtn.setEnabled(False)
+		buttonLayout.addWidget(self.clearCompareBtn)
+
+		buttonLayout.addStretch()
+		listBoxLayout.addLayout(buttonLayout)
+
+		# Right side: Comparison list
+		rightLayout = QVBoxLayout()
+		compareListLabel = QLabel("Comparison Files (up to 12)")
+		compareListLabel.setStyleSheet("font-weight: bold;")
+		rightLayout.addWidget(compareListLabel)
+
+		self.compareListWidget = QListWidget()
+		self.compareListWidget.setMaximumHeight(250)
+		self.compareListWidget.setStyleSheet("""
+			QListWidget {
+				background-color: #f0f8ff;
+				border: 2px solid #4682b4;
+			}
+		""")
+		rightLayout.addWidget(self.compareListWidget)
+
+		listBoxLayout.addLayout(rightLayout)
+
 		self.generalLayout.addLayout(listBoxLayout)
 
 	def _showActiveCalibFile(self):
@@ -164,11 +493,10 @@ class PyLCICPMSUi(QMainWindow):
 		buttonsLayout = QGridLayout()
 		# Button text | position on the QGridLayout | tooltip
 		buttons = {
-			'Load': (0, 0, 'Load selected file from list (Ctrl+L)'),
-			'Plot': (0, 1, 'Plot chromatogram for selected elements (Ctrl+P)'),
-			'Reset': (0, 2, 'Reset plot view to original scale'),
-			'Directory': (0, 3, 'Select directory containing data files (Ctrl+O)'),
-			'Select Elements': (0, 4, 'Open periodic table to select elements (Ctrl+E)')
+			'Reset': (0, 0, 'Reset plot view to original scale'),
+			'Export Plot': (0, 1, 'Export plot as PNG, SVG, or PDF'),
+			'Directory': (0, 2, 'Select directory containing data files (Ctrl+O)'),
+			'Select Elements': (0, 3, 'Open periodic table to select elements (Ctrl+E)')
 		}
 		# Create the buttons and add them to the grid layout
 		for btnText, (row, col, tooltip) in buttons.items():
@@ -176,9 +504,31 @@ class PyLCICPMSUi(QMainWindow):
 			self.buttons[btnText].setToolTip(tooltip)
 			if btnText == 'Select Elements':
 				self.buttons[btnText].setFixedSize(120, 40)
+			elif btnText == 'Export Plot':
+				self.buttons[btnText].setFixedSize(90, 40)
 			else:
 				self.buttons[btnText].setFixedSize(80, 40)
 			buttonsLayout.addWidget(self.buttons[btnText], row, col)
+
+		# Add comparison mode button to button row for prominence
+		self.compareFilesBtn = QPushButton('Compare')
+		self.compareFilesBtn.setCheckable(True)
+		self.compareFilesBtn.setToolTip('Compare data from multiple files (up to 12 files, requires 2+ files in comparison list, 1 element only)')
+		self.compareFilesBtn.setEnabled(False)  # Disabled until 2+ files added
+		self.compareFilesBtn.setStyleSheet("""
+			QPushButton {
+				font-weight: bold;
+				padding: 5px;
+			}
+			QPushButton:checked {
+				background-color: #4682b4;
+				color: white;
+			}
+		""")
+		if 'Export Plot' in self.buttons:
+			self.compareFilesBtn.setFixedSize(self.buttons['Export Plot'].size())
+		buttonsLayout.addWidget(self.compareFilesBtn, 0, 4)
+
 		# Add buttonsLayout to the general layout
 		self.generalLayout.addLayout(buttonsLayout)
 	
@@ -188,14 +538,6 @@ class PyLCICPMSUi(QMainWindow):
 		print('\nfile: ' + item.text())
 		return self.listwidget.currentItem()
 	
-	def setDisplayText(self, text):
-		"""Set display's text."""
-		self.display.setText(text)
-		self.display.setFocus()
-
-	def displayText(self):
-		"""Get display's text."""
-		return self.display.text()
 
 	def _createPeriodicTableData(self):
 		"""Create periodic table data structures for element selection."""
@@ -532,24 +874,242 @@ class PyLCICPMSUi(QMainWindow):
 		integrate_action.triggered.connect(lambda: self.integrateButtons['Integrate'].click())
 		self.addAction(integrate_action)
 
-		# Plot: Ctrl+P
-		plot_action = QAction("Plot", self)
-		plot_action.setShortcut(QKeySequence("Ctrl+P"))
-		plot_action.triggered.connect(lambda: self.buttons['Plot'].click())
-		self.addAction(plot_action)
-
-		# Load: Ctrl+L
-		load_action = QAction("Load", self)
-		load_action.setShortcut(QKeySequence("Ctrl+L"))
-		load_action.triggered.connect(lambda: self.buttons['Load'].click())
-		self.addAction(load_action)
-
 	def _restoreWindowState(self):
 		"""Restore window size and position from settings."""
 		settings = QSettings("LCICPMS", "DataViewer")
 		geometry = settings.value("geometry")
 		if geometry:
 			self.restoreGeometry(geometry)
+
+	def _createMenuBar(self):
+		"""Create menu bar with File menu and recent directories."""
+		menubar = self.menuBar()
+
+		# File menu
+		file_menu = menubar.addMenu('&File')
+
+		# Open Directory action
+		open_dir_action = QAction('&Open Directory...', self)
+		open_dir_action.setShortcut('Ctrl+O')
+		open_dir_action.triggered.connect(lambda: self.buttons['Directory'].click())
+		file_menu.addAction(open_dir_action)
+
+		file_menu.addSeparator()
+
+		# Recent Directories submenu
+		self.recent_menu = file_menu.addMenu('Recent Directories')
+		self._updateRecentDirectoriesMenu()
+
+		# Clear Recent action
+		file_menu.addSeparator()
+		clear_recent_action = QAction('Clear Recent Directories', self)
+		clear_recent_action.triggered.connect(self._clearRecentDirectories)
+		file_menu.addAction(clear_recent_action)
+
+		file_menu.addSeparator()
+
+		# Workspace actions
+		save_workspace_action = QAction('&Save Workspace...', self)
+		save_workspace_action.setShortcut('Ctrl+S')
+		save_workspace_action.triggered.connect(self._saveWorkspace)
+		file_menu.addAction(save_workspace_action)
+
+		load_workspace_action = QAction('&Load Workspace...', self)
+		load_workspace_action.setShortcut('Ctrl+Shift+O')
+		load_workspace_action.triggered.connect(self._loadWorkspace)
+		file_menu.addAction(load_workspace_action)
+
+		file_menu.addSeparator()
+
+		# Exit action
+		exit_action = QAction('E&xit', self)
+		exit_action.setShortcut('Ctrl+Q')
+		exit_action.triggered.connect(self.close)
+		file_menu.addAction(exit_action)
+
+	def _updateRecentDirectoriesMenu(self):
+		"""Update the recent directories menu."""
+		self.recent_menu.clear()
+
+		settings = QSettings("LCICPMS", "DataViewer")
+		recent_dirs = settings.value("recentDirectories", [])
+
+		if not recent_dirs:
+			no_recent = QAction('No recent directories', self)
+			no_recent.setEnabled(False)
+			self.recent_menu.addAction(no_recent)
+			return
+
+		for directory in recent_dirs[:5]:  # Show max 5
+			if os.path.exists(directory):
+				action = QAction(directory, self)
+				action.triggered.connect(lambda checked, d=directory: self._openRecentDirectory(d))
+				self.recent_menu.addAction(action)
+
+	def _openRecentDirectory(self, directory):
+		"""Open a recent directory."""
+		self.homeDir = directory + '/'
+		# Trigger the directory loading logic from controller
+		if hasattr(self, '_controller'):
+			self._controller._createListbox()
+			self.integrateButtons['Calibrate'].setEnabled(True)
+			self.integrateButtons['Load Cal.'].setEnabled(True)
+			self.integrateButtons['115In Correction'].setEnabled(True)
+			self.statusBar.showMessage(f'Loaded directory: {directory}', 3000)
+
+	def _clearRecentDirectories(self):
+		"""Clear the recent directories list."""
+		settings = QSettings("LCICPMS", "DataViewer")
+		settings.setValue("recentDirectories", [])
+		self._updateRecentDirectoriesMenu()
+		self.statusBar.showMessage('Recent directories cleared', 2000)
+
+	def addRecentDirectory(self, directory):
+		"""Add a directory to the recent list."""
+		settings = QSettings("LCICPMS", "DataViewer")
+		recent_dirs = settings.value("recentDirectories", [])
+
+		# Remove if already exists
+		if directory in recent_dirs:
+			recent_dirs.remove(directory)
+
+		# Add to front of list
+		recent_dirs.insert(0, directory)
+
+		# Keep only last 5
+		recent_dirs = recent_dirs[:5]
+
+		settings.setValue("recentDirectories", recent_dirs)
+		self._updateRecentDirectoriesMenu()
+
+	def _saveWorkspace(self):
+		"""Save current workspace state to a file."""
+		from PyQt6.QtWidgets import QFileDialog, QMessageBox
+		import json
+
+		# Show file dialog
+		default_name = "workspace.lcicpms"
+		file_path, _ = QFileDialog.getSaveFileName(
+			self,
+			"Save Workspace",
+			default_name,
+			"LC-ICP-MS Workspace (*.lcicpms);;All Files (*)"
+		)
+
+		if not file_path:
+			return  # User cancelled
+
+		try:
+			# Collect workspace state
+			workspace = {
+				'version': '1.0',
+				'homeDir': self.homeDir,
+				'activeElements': self.activeElements,
+				'calCurves': self.calCurves,
+				'singleOutputFile': self.singleOutputFile,
+				'baseSubtract': self.baseSubtract,
+			}
+
+			# Add current file if one is selected
+			if self.listwidget.currentItem() is not None:
+				workspace['currentFile'] = self.listwidget.currentItem().text()
+
+			# Add integration ranges if controller is available
+			if hasattr(self, '_controller'):
+				workspace['intRange'] = self._controller._intRange
+
+			# Save to file
+			with open(file_path, 'w') as f:
+				json.dump(workspace, f, indent=2)
+
+			self.statusBar.showMessage(f'Workspace saved to {file_path}', 5000)
+
+		except Exception as e:
+			QMessageBox.warning(
+				self,
+				'Save Error',
+				f'Failed to save workspace: {str(e)}',
+				QMessageBox.StandardButton.Ok
+			)
+
+	def _loadWorkspace(self):
+		"""Load workspace state from a file."""
+		from PyQt6.QtWidgets import QFileDialog, QMessageBox
+		import json
+
+		# Show file dialog
+		file_path, _ = QFileDialog.getOpenFileName(
+			self,
+			"Load Workspace",
+			"",
+			"LC-ICP-MS Workspace (*.lcicpms);;All Files (*)"
+		)
+
+		if not file_path:
+			return  # User cancelled
+
+		try:
+			# Load workspace file
+			with open(file_path, 'r') as f:
+				workspace = json.load(f)
+
+			# Restore directory
+			if 'homeDir' in workspace and workspace['homeDir']:
+				self.homeDir = workspace['homeDir']
+				if hasattr(self, '_controller'):
+					self._controller._createListbox()
+					self.integrateButtons['Calibrate'].setEnabled(True)
+					self.integrateButtons['Load Cal.'].setEnabled(True)
+					self.integrateButtons['115In Correction'].setEnabled(True)
+
+			# Restore selected elements
+			if 'activeElements' in workspace:
+				self.activeElements = workspace['activeElements']
+
+			# Restore calibration curves
+			if 'calCurves' in workspace:
+				self.calCurves = workspace['calCurves']
+				if self.calCurves:
+					self.calib_label.setText('Calibration loaded')
+
+			# Restore settings
+			if 'singleOutputFile' in workspace:
+				self.singleOutputFile = workspace['singleOutputFile']
+				self.oneFileBox.setChecked(workspace['singleOutputFile'])
+
+			if 'baseSubtract' in workspace:
+				self.baseSubtract = workspace['baseSubtract']
+				self.baseSubtractBox.setChecked(workspace['baseSubtract'])
+
+			# Restore current file and plot
+			if 'currentFile' in workspace and workspace['currentFile']:
+				# Find and select the file in the list
+				items = self.listwidget.findItems(workspace['currentFile'], Qt.MatchFlag.MatchExactly)
+				if items:
+					self.listwidget.setCurrentItem(items[0])
+					# This will trigger auto-load and plot
+
+			# Restore integration ranges
+			if 'intRange' in workspace and hasattr(self, '_controller'):
+				self._controller._intRange = workspace['intRange']
+				# Redraw integration markers if ranges exist
+				if len(workspace['intRange']) >= 2:
+					from ..models.data_processor import LICPMSfunctions
+					model = self._controller._model
+					for i in range(0, len(workspace['intRange']), 2):
+						if i + 1 < len(workspace['intRange']):
+							model.plotLowRange(workspace['intRange'][i], i // 2)
+							model.plotHighRange(workspace['intRange'][i + 1], i // 2)
+
+			self.statusBar.showMessage(f'Workspace loaded from {file_path}', 5000)
+
+		except Exception as e:
+			QMessageBox.warning(
+				self,
+				'Load Error',
+				f'Failed to load workspace: {str(e)}',
+				QMessageBox.StandardButton.Ok
+			)
 
 	def closeEvent(self, event):
 		"""Save window state before closing."""

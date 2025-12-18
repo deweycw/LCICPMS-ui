@@ -38,6 +38,7 @@ class LICPMSfunctions:
 		self.intColors = sns.color_palette(n_colors = 6, as_cmap = True)
 		self.minline = None
 		self.maxline = None
+		self.region = None
 		
 	def importData(self):
 		'''imports LCICPMS .csv file using lcicpms.RawICPMSData'''
@@ -105,7 +106,21 @@ class LICPMSfunctions:
 	
 	def plotActiveElements(self):
 		'''plots active elements for selected file'''
-		self._view.chroma = plotChroma(self._view, self._view.elementOptions, self._data, self._view.activeElements)._plotChroma()
+		# Pass comparison data if in compare mode (now supports multiple files)
+		compare_data_list = self._view.comparisonData if self._view.compareMode else None
+		compare_files_list = self._view.comparisonFiles if self._view.compareMode else None
+		compare_labels = self._view.comparisonLabels if self._view.compareMode else None
+
+		self._view.chroma = plotChroma(
+			self._view,
+			self._view.elementOptions,
+			self._data,
+			self._view.activeElements,
+			compare_data=compare_data_list,
+			compare_files=compare_files_list,
+			compare_labels=compare_labels
+		)._plotChroma()
+
 		if self.minline != None:
 			self._view.plotSpace.addItem(self.minline)
 		if self.maxline != None:
@@ -280,8 +295,25 @@ class LICPMSfunctions:
 		self.maxline = pg.InfiniteLine(xmax, pen=col,angle = 90)
 		self._view.plotSpace.addItem(self.maxline)
 
+		# Add shaded region between min and max lines
+		if self.minline is not None:
+			xmin = self.minline.value()
+			# Create LinearRegionItem with semi-transparent fill
+			self.region = pg.LinearRegionItem(
+				values=(xmin, xmax),
+				orientation='vertical',
+				brush=pg.mkBrush(col[0]*255, col[1]*255, col[2]*255, 50),  # Semi-transparent
+				pen=pg.mkPen(None),  # No border lines (we already have the InfiniteLines)
+				movable=False  # Make it non-movable
+			)
+			self._view.plotSpace.addItem(self.region)
+
 	def removeIntRange(self):
-		self._view.plotSpace.removeItem(self.maxline)
-		self._view.plotSpace.removeItem(self.minline)
+		if self.maxline is not None:
+			self._view.plotSpace.removeItem(self.maxline)
+		if self.minline is not None:
+			self._view.plotSpace.removeItem(self.minline)
+		if self.region is not None:
+			self._view.plotSpace.removeItem(self.region)
 
 

@@ -38,6 +38,10 @@ class PTModel:
 
 	def plotActiveElements(self):
 		'''plots active elements for selected file'''
+		# Update comparison button state based on element count
+		# The button will be enabled/disabled in _updateCompareButtons based on file count and element count
+		self._maincontrol._updateCompareButtons()
+
 		self._maincontrol._makePlot()
 		
 
