@@ -30,7 +30,7 @@ jobs:
       - name: Create release archive
         run: |
           cd dist
-          7z a ../LCICPMS-ui-${{ github.ref_name }}-windows.zip LCICPMS-ui.exe
+          7z a ../LCICPMS-ui-${{ github.ref_name }}-windows.zip LCICPMS-ui
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
