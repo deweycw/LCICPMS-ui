@@ -233,7 +233,7 @@ git push origin v0.3.0
 
 If you use LCICPMS-ui in your research, please cite it:
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.XXXXXXX.svg)](https://doi.org/10.5281/zenodo.XXXXXXX)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17979033.svg)](https://doi.org/10.5281/zenodo.17979033)
 
 ```bibtex
 @software{dewey_lcicpms_ui,
@@ -241,12 +241,10 @@ If you use LCICPMS-ui in your research, please cite it:
   title        = {LCICPMS-ui: LC-ICP-MS Data Viewer},
   year         = {2025},
   publisher    = {Zenodo},
-  doi          = {10.5281/zenodo.XXXXXXX},
-  url          = {https://doi.org/10.5281/zenodo.XXXXXXX}
+  doi          = {10.5281/zenodo.17979033},
+  url          = {https://doi.org/10.5281/zenodo.17979033}
 }
 ```
-
-> **Note**: Replace `XXXXXXX` with the actual Zenodo DOI after the first release is archived.
 
 ## License
 
