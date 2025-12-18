@@ -77,7 +77,8 @@ class plotChroma:
 				legend_elements.append(short_name)
 				legend_colors[short_name] = file_colors[file_idx]
 
-			self._view.updateLegend(legend_elements, legend_colors)
+			# Pass format_isotopes=False since these are file names, not isotopes
+			self._view.updateLegend(legend_elements, legend_colors, format_isotopes=False)
 
 			# Plot data: each file gets a color, all use solid lines (only 1 element)
 			chromaplots = []

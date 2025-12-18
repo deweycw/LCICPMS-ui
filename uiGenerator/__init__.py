@@ -1,6 +1,6 @@
 """LC-ICP-MS Data Viewer - A PyQt6 application for analyzing LC-ICP-MS chromatography data."""
 
-__version__ = '1.0.0'
+__version__ = '1.0.1'
 __author__ = 'Christian Dewey'
 
 # Import main classes for easy access

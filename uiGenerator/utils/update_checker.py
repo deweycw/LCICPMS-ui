@@ -11,7 +11,7 @@ import webbrowser
 
 # Configuration
 GITHUB_REPO = "deweycw/LCICPMS-ui"  # Update with your GitHub username
-CURRENT_VERSION = "1.0.0"  # This should match setup.py version
+CURRENT_VERSION = "1.0.1"  # This should match setup.py version
 
 
 class UpdateCheckThread(QThread):

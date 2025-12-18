@@ -201,8 +201,15 @@ class PyLCICPMSUi(QMainWindow):
 		# Add spacer at bottom
 		legendLayout.addStretch()
 
-	def updateLegend(self, elements, color_dict):
-		"""Update the legend with current elements and colors."""
+	def updateLegend(self, elements, color_dict, format_isotopes=True):
+		"""Update the legend with current elements and colors.
+
+		Args:
+			elements: List of element names or file labels
+			color_dict: Dictionary mapping elements to colors
+			format_isotopes: If True, apply subscript/superscript formatting for isotopes.
+			                 If False, display labels as plain text (for file names).
+		"""
 		# Clear existing legend items
 		while self.legendItemsLayout.count():
 			item = self.legendItemsLayout.takeAt(0)
@@ -269,7 +276,8 @@ class PyLCICPMSUi(QMainWindow):
 			itemLayout.addWidget(colorBox)
 
 			# Element label with formatted text and enhanced styling
-			formatted_name = format_analyte_html(element)
+			# Only apply isotope formatting if requested (not for file names in comparison mode)
+			formatted_name = format_analyte_html(element) if format_isotopes else element
 			elementLabel = QLabel(formatted_name)
 			elementLabel.setStyleSheet("""
 				QLabel {
