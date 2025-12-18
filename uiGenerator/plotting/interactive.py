@@ -3,6 +3,7 @@ import numpy as np
 import seaborn as sns
 from matplotlib.ticker import (MultipleLocator, MaxNLocator,PercentFormatter)
 import pyqtgraph as pg
+from uiGenerator.utils.analyte_formatter import format_analyte_html
 
 class plotChroma:
 	def __init__(self,view = None,elementList=None,icpms_data=None,activeElements=None,plt_title = None):
@@ -35,11 +36,12 @@ class plotChroma:
 			icpms_time = self.icpms_data['Time ' + m] / 60
 			icpms_signal = self.icpms_data[m] / 1000
 			self.max_icp = max(icpms_signal)
-			# Use the analyte name directly for the legend (handles both '56Fe' and '32S | 32S.16O' formats)
+			# Format the analyte name with superscripts/subscripts for the legend
+			formatted_name = format_analyte_html(m)
 			self._view.plotSpace.setBackground('w')
 			pen = color_dict[m]
 			self._view.plotSpace.addLegend(offset = [-1,1])
-			chromaPlot = self._view.plotSpace.plot(icpms_time, icpms_signal, pen=pen, width=4, name=m)
+			chromaPlot = self._view.plotSpace.plot(icpms_time, icpms_signal, pen=pen, width=4, name=formatted_name)
 		return chromaPlot
 
 

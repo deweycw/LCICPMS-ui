@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 from matplotlib.ticker import (MultipleLocator, MaxNLocator,PercentFormatter)
+from uiGenerator.utils.analyte_formatter import format_analyte_latex
 
 
 class ICPMS_Data_Class:
@@ -29,16 +30,12 @@ class ICPMS_Data_Class:
 		for m in self.elements:
 			icpms_time = self.icpms_data['Time ' + m] / 60
 			icpms_signal = self.icpms_data[m] / 1000
-			msize = len(m)
-			mass = m[:msize-2]
-			element = m[msize-2:]
-			print(mass)
-			print(element)
-			p, = host.plot(icpms_time, icpms_signal, color = color_dict[m], linewidth  = 0.75, label=r'$^{%s}$' % mass + element)
-			if icpms_max < max(icpms_signal): 
+			formatted_label = format_analyte_latex(m)
+			p, = host.plot(icpms_time, icpms_signal, color = color_dict[m], linewidth  = 0.75, label=formatted_label)
+			if icpms_max < max(icpms_signal):
 				icpms_max = 1.1 * max(icpms_signal)
 			lines.append(p)
-			labels.append(r'$^{%s}$' % mass + element)
+			labels.append(formatted_label)
 		
 		host.set_title(self.plt_title) 
 		host.set_xlabel("Retention time (min)")
