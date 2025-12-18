@@ -59,40 +59,46 @@ class PTCtrl:
 		"""Format analyte string with superscripts, subscripts, and parentheses for pipe-separated values."""
 		import re
 
+		def format_part(part):
+			"""Format a single analyte part, handling multiple elements separated by periods."""
+			# Remove periods that separate elements
+			part = part.replace('.', '')
+
+			# Pattern to match all isotope-element pairs in the string
+			result = ''
+			remaining = part
+
+			while remaining:
+				# Try to match isotope number + element symbol at the start
+				match = re.match(r'^(\d+)([A-Z][a-z]?)', remaining)
+				if match:
+					isotope = match.group(1)
+					element = match.group(2)
+					result += f'<sup>{isotope}</sup>{element}'
+					remaining = remaining[len(match.group(0)):]
+				else:
+					# Check if there's a number (stoichiometry)
+					match = re.match(r'^(\d+)', remaining)
+					if match:
+						number = match.group(1)
+						result += f'<sub>{number}</sub>'
+						remaining = remaining[len(number):]
+					else:
+						# Just add the character as-is
+						result += remaining[0]
+						remaining = remaining[1:]
+
+			return result
+
 		# Split by pipe and process each part
 		parts = analyte.split('|')
-		formatted_parts = []
+		formatted_parts = [format_part(part) for part in parts]
 
-		for part in parts:
-			# Pattern to match isotope number at start, element symbol, and optional stoichiometry
-			# Examples: "56Fe", "32S", "238UO2"
-			match = re.match(r'^(\d+)([A-Z][a-z]?)(.*)$', part)
-
-			if match:
-				isotope = match.group(1)  # e.g., "56"
-				element = match.group(2)  # e.g., "Fe"
-				suffix = match.group(3)   # e.g., "O2", "O", ""
-
-				# Format isotope as superscript
-				formatted = f'<sup>{isotope}</sup>{element}'
-
-				# Format stoichiometry (numbers after element) as subscript
-				if suffix:
-					# Replace numbers with subscript version
-					formatted_suffix = re.sub(r'(\d+)', r'<sub>\1</sub>', suffix)
-					formatted += formatted_suffix
-
-				formatted_parts.append(formatted)
-			else:
-				# If pattern doesn't match, use as-is
-				formatted_parts.append(part)
-
-		# Join with parentheses if there are multiple parts
+		# Join with parentheses if there are multiple parts (no spaces)
 		if len(formatted_parts) == 2:
-			return f'{formatted_parts[0]} ({formatted_parts[1]})'
+			return f'{formatted_parts[0]}({formatted_parts[1]})'
 		elif len(formatted_parts) > 2:
-			# More than 2 parts: first part, then rest in parentheses
-			return f'{formatted_parts[0]} ({", ".join(formatted_parts[1:])})'
+			return f'{formatted_parts[0]}({",".join(formatted_parts[1:])})'
 		else:
 			return formatted_parts[0]
 
