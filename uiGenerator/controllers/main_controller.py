@@ -67,19 +67,38 @@ class PyLCICPMSCtrl:
 		self._view.buttons['Load'].setEnabled(True)
 
 	def _createListbox(self):
-		
+
 		self._view.listwidget.clear()
-		
+
 		test_dir = self._view.homeDir #'/Users/christiandewey/presentations/DOE-PI-22/day6/day6/'
 		i = 0
 		for name in sorted(os.listdir(test_dir)):
-			if '.csv' in name: 
+			if '.csv' in name:
+				# Add item to list
 				self._view.listwidget.insertItem(i, name)
+
+				# Add tooltip with file information
+				try:
+					file_path = os.path.join(test_dir, name)
+					file_size = os.path.getsize(file_path)
+					mod_time = os.path.getmtime(file_path)
+					from datetime import datetime
+					mod_date = datetime.fromtimestamp(mod_time).strftime('%Y-%m-%d %H:%M')
+
+					# Format file size
+					if file_size < 1024:
+						size_str = f"{file_size} B"
+					elif file_size < 1024 * 1024:
+						size_str = f"{file_size / 1024:.1f} KB"
+					else:
+						size_str = f"{file_size / (1024 * 1024):.1f} MB"
+
+					tooltip = f"Path: {file_path}\nSize: {size_str}\nModified: {mod_date}"
+					self._view.listwidget.item(i).setToolTip(tooltip)
+				except:
+					pass
+
 				i = i + 1
-		#self._view.listwidget.clicked.connect(self._view.clicked)
-		#listBoxLayout.addWidget(self.listwidget)
-		#self.listwidget.setMaximumHeight(250)
-		#self.generalLayout.addLayout(listBoxLayout)
 
 	def _buildExpression(self, sub_exp):
 		"""Build expression."""
@@ -100,8 +119,16 @@ class PyLCICPMSCtrl:
 	def _importAndActivatePlotting(self):
 		'''activates plotting function after data imported'''
 		if self._view.listwidget.currentItem() is not None:
-			self._view.setDisplayText(self._view.listwidget.currentItem().text())
+			filename = self._view.listwidget.currentItem().text()
+			self._view.setDisplayText(filename)
 			self._model.importData()
+
+			# Update window title with filename
+			self._view.setWindowTitle(f'LC-ICP-MS Data Viewer - {filename}')
+
+			# Update status bar
+			file_path = os.path.join(self._view.homeDir, filename)
+			self._view.updateStatusBar(file_path)
 
 			# Auto-select all available elements if none selected
 			if self._view.activeElements == []:
@@ -124,15 +151,15 @@ class PyLCICPMSCtrl:
 		cc = len(self._intRange)
 		cc = cc + 1
 		
-		if cc == 1: 
+		if cc == 1:
 			self._intRange.append(self._act_pos.x()) #.x() / 60 # in minutes
-			print('\nxmin selection: %.2f' % self._act_pos.x())
+			self._view.statusBar.showMessage(f'Integration start: {self._act_pos.x():.2f} min', 3000)
 			self._model.plotLowRange(self._act_pos.x(),self._n)
 			self._minAssigned = True
-			
+
 		if (cc == 2) and self._minAssigned is True:
 			self._intRange.append(self._act_pos.x()) #.x() / 60 # in minutes
-			print('xmax selection: %.2f' % self._act_pos.x())
+			self._view.statusBar.showMessage(f'Integration end: {self._act_pos.x():.2f} min | Range: {self._intRange[-1] - self._intRange[-2]:.2f} min', 5000)
 			self._model.plotHighRange(self._act_pos.x(),self._n)
 			self._view.integrateButtons['Integrate'].setEnabled(True)
 			self._view.integrateButtons['Integrate'].setStyleSheet("background-color: red")
@@ -144,9 +171,10 @@ class PyLCICPMSCtrl:
 		'''select integration range'''
 		if self._view.intbox.isChecked() == True:
 			self._view.proxy = pg.SignalProxy(self._view.chroma.scene().sigMouseClicked, rateLimit=60, slot=self._onClick)
+			self._view.statusBar.showMessage('Click plot to select integration range', 3000)
 		else:
-			print(self._view.intbox.isChecked())
 			self._view.proxy = None
+			self._view.statusBar.showMessage('Integration range selection disabled', 2000)
 
 	def _selectOneFile(self,checked):
 		'''select integration range'''
@@ -204,8 +232,8 @@ class PyLCICPMSCtrl:
 		with open(calfile) as file:
 			self._view.calCurves = json.load(file)
 
-		print('Loaded calibration file: ' + calfile)
-
+		# Update status bar and label
+		self._view.statusBar.showMessage(f'Loaded calibration file: {os.path.basename(calfile)}', 5000)
 		self._view.calib_label.setText('Calibration loaded')
 
 	def _selectInNormFile(self):
@@ -225,6 +253,29 @@ class PyLCICPMSCtrl:
 		self._view.integrateButtons['Integrate'].setStyleSheet("background-color: light gray")
 		self._view.integrateButtons['Integrate'].setEnabled(False)
 
+	def _confirmReset(self):
+		"""Show confirmation dialog before resetting plot."""
+		from PyQt6.QtWidgets import QMessageBox
+
+		# Check if there's anything to reset
+		if not self._view.activeElements and not self._intRange:
+			# Nothing to reset, just clear
+			self._clearForm()
+			return
+
+		# Show confirmation dialog
+		reply = QMessageBox.question(
+			self._view,
+			'Confirm Reset',
+			'Are you sure you want to reset the plot?\n\nThis will clear:\n- Current plot view\n- Integration ranges\n- Selected elements',
+			QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+			QMessageBox.StandardButton.No
+		)
+
+		if reply == QMessageBox.StandardButton.Yes:
+			self._clearForm()
+			self._view.statusBar.showMessage('Plot reset', 2000)
+
 	def _check_for_updates(self):
 		"""Check for updates on startup"""
 		try:
@@ -235,7 +286,8 @@ class PyLCICPMSCtrl:
 			# Update checker not available (might be in development mode)
 			pass
 		except Exception as e:
-			print(f"Error checking for updates: {e}")
+			# Silently fail - update check is not critical
+			pass
 
 	def _connectSignals(self):
 		"""Connect signals and slots."""
@@ -263,13 +315,14 @@ class PyLCICPMSCtrl:
 		
 		self._view.buttons['Load'].clicked.connect(self._importAndActivatePlotting)
 		self._view.listwidget.currentItemChanged.connect(self._importAndActivatePlotting)
+		self._view.listwidget.itemDoubleClicked.connect(lambda: self._importAndActivatePlotting())
 
 		self._view.intbox.stateChanged.connect(self._selectIntRange)
 		self._view.oneFileBox.stateChanged.connect(self._selectOneFile)
 		self._view.baseSubtractBox.stateChanged.connect(self._baselineSubtraction)
 
 		self._view.buttons['Plot'].clicked.connect(self._makePlot)
-		self._view.buttons['Reset'].clicked.connect(self._clearForm)	
+		self._view.buttons['Reset'].clicked.connect(self._confirmReset)	
 
 		self._view.integrateButtons['Calibrate'].clicked.connect(self._showCalWindow)
 		self._view.integrateButtons['Load Cal.'].clicked.connect(self._loadCalFile)
