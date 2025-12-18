@@ -55,6 +55,47 @@ class PTCtrl:
 			self._view.periodicTable[buttonkey].setStyleSheet('background-color : yellow')
 			self._mainview.periodicTableDict[buttonkey][3] = 1
 
+	def _format_analyte_display(self, analyte):
+		"""Format analyte string with superscripts, subscripts, and parentheses for pipe-separated values."""
+		import re
+
+		# Split by pipe and process each part
+		parts = analyte.split('|')
+		formatted_parts = []
+
+		for part in parts:
+			# Pattern to match isotope number at start, element symbol, and optional stoichiometry
+			# Examples: "56Fe", "32S", "238UO2"
+			match = re.match(r'^(\d+)([A-Z][a-z]?)(.*)$', part)
+
+			if match:
+				isotope = match.group(1)  # e.g., "56"
+				element = match.group(2)  # e.g., "Fe"
+				suffix = match.group(3)   # e.g., "O2", "O", ""
+
+				# Format isotope as superscript
+				formatted = f'<sup>{isotope}</sup>{element}'
+
+				# Format stoichiometry (numbers after element) as subscript
+				if suffix:
+					# Replace numbers with subscript version
+					formatted_suffix = re.sub(r'(\d+)', r'<sub>\1</sub>', suffix)
+					formatted += formatted_suffix
+
+				formatted_parts.append(formatted)
+			else:
+				# If pattern doesn't match, use as-is
+				formatted_parts.append(part)
+
+		# Join with parentheses if there are multiple parts
+		if len(formatted_parts) == 2:
+			return f'{formatted_parts[0]} ({formatted_parts[1]})'
+		elif len(formatted_parts) > 2:
+			# More than 2 parts: first part, then rest in parentheses
+			return f'{formatted_parts[0]} ({", ".join(formatted_parts[1:])})'
+		else:
+			return formatted_parts[0]
+
 	def _alterElementList(self, element):
 		from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QCheckBox, QPushButton, QLabel
 
@@ -65,6 +106,20 @@ class PTCtrl:
 			return
 
 		available_analytes = self._mainview._analytes_by_element[split_el]
+
+		# If only one analyte, auto-select it and skip dialog
+		if len(available_analytes) == 1:
+			analyte = available_analytes[0]
+			if analyte not in self._mainview.activeElements:
+				self._mainview.activeElements.append(analyte)
+				self._mainview.periodicTableDict[element][3] = 1
+				self._view.periodicTable[element].setStyleSheet('background-color : yellow')
+			else:
+				self._mainview.activeElements.remove(analyte)
+				self._mainview.periodicTableDict[element][3] = 0
+				col = self._mainview.periodicTableDict[element][2]
+				self._view.periodicTable[element].setStyleSheet('background-color : ' + col)
+			return
 
 		# Create dialog to select analytes
 		dialog = QDialog(self._view)
@@ -77,7 +132,10 @@ class PTCtrl:
 		# Create checkboxes for each available analyte
 		checkboxes = {}
 		for analyte in available_analytes:
-			cb = QCheckBox(analyte)
+			formatted_text = self._format_analyte_display(analyte)
+			cb = QCheckBox()
+			cb.setText(formatted_text)
+			cb.setTextFormat(Qt.TextFormat.RichText)
 			cb.setChecked(analyte in self._mainview.activeElements)
 			checkboxes[analyte] = cb
 			layout.addWidget(cb)
