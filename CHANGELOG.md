@@ -7,11 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2025-12-17
+
+### Security
+- Upgrade numpy from >=1.20.0 to >=1.22.0 (fixes buffer overflow vulnerabilities)
+- Upgrade scikit-learn from >=1.0.0 to >=1.5.0 (fixes data leakage and DoS vulnerabilities)
+- Upgrade Pillow from >=9.0.0 to >=10.3.0 (fixes 3 critical CVEs including arbitrary code execution)
+- Add joblib>=1.2.0 requirement (fixes critical arbitrary code execution vulnerability)
+
 ### Added
-- Automatic update checker with GitHub Releases integration
-- Standalone executable builds for Windows, macOS, and Linux
-- Automated build system with GitHub Actions
-- Comprehensive build documentation
+- PyInstaller spec file for building standalone executables
+- Comprehensive .gitignore for Python projects
 
 ## [0.2.0] - 2024-XX-XX
 
@@ -48,6 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Calibration curve generation
 - Export to CSV
 
-[Unreleased]: https://github.com/deweycw/LCICPMS-ui/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/deweycw/LCICPMS-ui/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/deweycw/LCICPMS-ui/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/deweycw/LCICPMS-ui/releases/tag/v0.2.0
 [0.1.0]: https://github.com/deweycw/LCICPMS-ui/releases/tag/v0.1.0
