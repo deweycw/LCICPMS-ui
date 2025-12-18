@@ -40,7 +40,7 @@ datas += collect_data_files('pyqtgraph')
 block_cipher = None
 
 a = Analysis(
-    ['uiGenerator/__main__.py'],
+    ['run.py'],
     pathex=[],
     binaries=[],
     datas=datas,
