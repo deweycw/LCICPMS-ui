@@ -53,15 +53,18 @@ class PTView(QWidget):
 		"""Create the buttons."""
 		self.buttons = {}
 		buttonsLayout = QGridLayout()
-		# Button text | position on the QGridLayout
-		buttons = {'Save': (0, 0),
-			'Clear': (0, 1),
-			'Select All':(0,2)}
+		# Button text | position on the QGridLayout | tooltip
+		buttons = {
+			'Save': (0, 0, 'Save selected elements and close (Enter)'),
+			'Clear': (0, 1, 'Deselect all elements'),
+			'Select All': (0, 2, 'Select all available elements in data file')
+		}
 		# Create the buttons and add them to the grid layout
-		for btnText, pos in buttons.items():
+		for btnText, (row, col, tooltip) in buttons.items():
 			self.buttons[btnText] = QPushButton(btnText)
+			self.buttons[btnText].setToolTip(tooltip)
 			self.buttons[btnText].setFixedSize(100, 40)
-			buttonsLayout.addWidget(self.buttons[btnText], pos[0], pos[1])
+			buttonsLayout.addWidget(self.buttons[btnText], row, col)
 		# Add buttonsLayout to the general layout
 		self.bottomLayout.addLayout(buttonsLayout)
 

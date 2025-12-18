@@ -1,6 +1,7 @@
-import sys 
-from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import * 
+import sys
+from PyQt6.QtCore import Qt, QSettings
+from PyQt6.QtGui import QKeySequence, QAction
+from PyQt6.QtWidgets import *
 from pyqtgraph import PlotWidget, plot
 import pyqtgraph as pg
 from functools import partial
@@ -56,6 +57,9 @@ class PyLCICPMSUi(QMainWindow):
 		self._createIntegrateCheckBoxes()
 		self._createIntegrateLayout()
 		self._showActiveCalibFile()
+		self._createStatusBar()
+		self._createKeyboardShortcuts()
+		self._restoreWindowState()
 		self._createResizeHandle()
 
 	def _createResizeHandle(self):
@@ -100,8 +104,11 @@ class PyLCICPMSUi(QMainWindow):
 		self.integrateLayout = QHBoxLayout()
 		checkboxLayout =QVBoxLayout()
 		self.intbox = QCheckBox('Select integration range?')
+		self.intbox.setToolTip('Click plot to set integration start and end points')
 		self.oneFileBox = QCheckBox('Single output file?')
+		self.oneFileBox.setToolTip('Save all integrations to a single output file')
 		self.baseSubtractBox = QCheckBox('Baseline subtraction?')
+		self.baseSubtractBox.setToolTip('Subtract baseline from peak area calculations')
 		checkboxLayout.addWidget(self.intbox)
 		checkboxLayout.addWidget(self.oneFileBox)
 		checkboxLayout.addWidget(self.baseSubtractBox)
@@ -112,16 +119,23 @@ class PyLCICPMSUi(QMainWindow):
 		"""Create the integrate buttons."""
 		self.integrateButtons = {}
 		self.intButtonLayout = QGridLayout()
-		# Button text | position on the QGridLayout
-		intbuttons = {'Integrate': (0,0),'Load Cal.': (0,2),'Calibrate': (0,3), '115In Correction': (0,1), 'Reset Integration': (1,0)}
+		# Button text | position on the QGridLayout | tooltip
+		intbuttons = {
+			'Integrate': (0, 0, 'Integrate peaks in selected range (Ctrl+I)'),
+			'Load Cal.': (0, 2, 'Load calibration file'),
+			'Calibrate': (0, 3, 'Open calibration window'),
+			'115In Correction': (0, 1, 'Apply indium normalization correction'),
+			'Reset Integration': (1, 0, 'Clear integration ranges and results')
+		}
 		# Create the buttons and add them to the grid layout
-		for btnText, pos in intbuttons.items():
-			self.integrateButtons[btnText] = QPushButton(btnText)			
+		for btnText, (row, col, tooltip) in intbuttons.items():
+			self.integrateButtons[btnText] = QPushButton(btnText)
+			self.integrateButtons[btnText].setToolTip(tooltip)
 			if 'Reset' not in btnText:
 				self.integrateButtons[btnText].setFixedSize(122, 40)
 			else:
 				self.integrateButtons[btnText].setFixedSize(130, 40)
-			self.intButtonLayout.addWidget(self.integrateButtons[btnText], pos[0],pos[1])
+			self.intButtonLayout.addWidget(self.integrateButtons[btnText], row, col)
 
 			
 			
@@ -148,21 +162,23 @@ class PyLCICPMSUi(QMainWindow):
 		"""Create the buttons."""
 		self.buttons = {}
 		buttonsLayout = QGridLayout()
-		# Button text | position on the QGridLayout
-		buttons = {'Load': (0, 0),
-				   'Plot': (0, 1),
-				   'Reset': (0,2),
-				   'Directory': (0, 3),
-				   'Select Elements': (0, 4)
-				  }
+		# Button text | position on the QGridLayout | tooltip
+		buttons = {
+			'Load': (0, 0, 'Load selected file from list (Ctrl+L)'),
+			'Plot': (0, 1, 'Plot chromatogram for selected elements (Ctrl+P)'),
+			'Reset': (0, 2, 'Reset plot view to original scale'),
+			'Directory': (0, 3, 'Select directory containing data files (Ctrl+O)'),
+			'Select Elements': (0, 4, 'Open periodic table to select elements (Ctrl+E)')
+		}
 		# Create the buttons and add them to the grid layout
-		for btnText, pos in buttons.items():
+		for btnText, (row, col, tooltip) in buttons.items():
 			self.buttons[btnText] = QPushButton(btnText)
+			self.buttons[btnText].setToolTip(tooltip)
 			if btnText == 'Select Elements':
 				self.buttons[btnText].setFixedSize(120, 40)
 			else:
 				self.buttons[btnText].setFixedSize(80, 40)
-			buttonsLayout.addWidget(self.buttons[btnText], pos[0], pos[1])
+			buttonsLayout.addWidget(self.buttons[btnText], row, col)
 		# Add buttonsLayout to the general layout
 		self.generalLayout.addLayout(buttonsLayout)
 	
@@ -451,4 +467,93 @@ class PyLCICPMSUi(QMainWindow):
 		for key in self.periodicTableDict.keys():
 			element_symbol = key.split('\n')[1]
 			self.ptDictEls[element_symbol] = key
+
+	def _createStatusBar(self):
+		"""Create status bar to show current file, elements count, and data info."""
+		self.statusBar = QStatusBar()
+		self.setStatusBar(self.statusBar)
+
+		# Create permanent widgets for status bar
+		self.status_file_label = QLabel("No file loaded")
+		self.status_elements_label = QLabel("Elements: 0")
+		self.status_data_label = QLabel("")
+
+		# Add labels to status bar
+		self.statusBar.addWidget(self.status_file_label, 1)  # Stretch factor 1
+		self.statusBar.addPermanentWidget(self.status_elements_label)
+		self.statusBar.addPermanentWidget(self.status_data_label)
+
+		# Set initial status
+		self.updateStatusBar()
+
+	def updateStatusBar(self, filename=None):
+		"""Update status bar with current information."""
+		# Update file name
+		if filename:
+			self.status_file_label.setText(f"File: {os.path.basename(filename)}")
+		elif self.filepath:
+			self.status_file_label.setText(f"File: {os.path.basename(self.filepath)}")
+		else:
+			self.status_file_label.setText("No file loaded")
+
+		# Update elements count
+		elem_count = len(self.activeElements)
+		self.status_elements_label.setText(f"Elements: {elem_count}")
+
+		# Update data info if available
+		if hasattr(self, 'icpms_data') and self.icpms_data is not None and self.activeElements:
+			try:
+				first_elem = self.activeElements[0]
+				time_col = 'Time ' + first_elem
+				if time_col in self.icpms_data.columns:
+					time_range = self.icpms_data[time_col].max() - self.icpms_data[time_col].min()
+					samples = len(self.icpms_data)
+					self.status_data_label.setText(f"Time: {time_range/60:.1f} min | Samples: {samples}")
+			except:
+				pass
+
+	def _createKeyboardShortcuts(self):
+		"""Create keyboard shortcuts for common actions."""
+		# Directory selection: Ctrl+O
+		directory_action = QAction("Open Directory", self)
+		directory_action.setShortcut(QKeySequence("Ctrl+O"))
+		directory_action.triggered.connect(lambda: self.buttons['Directory'].click())
+		self.addAction(directory_action)
+
+		# Select Elements: Ctrl+E
+		elements_action = QAction("Select Elements", self)
+		elements_action.setShortcut(QKeySequence("Ctrl+E"))
+		elements_action.triggered.connect(lambda: self.buttons['Select Elements'].click())
+		self.addAction(elements_action)
+
+		# Integrate: Ctrl+I
+		integrate_action = QAction("Integrate", self)
+		integrate_action.setShortcut(QKeySequence("Ctrl+I"))
+		integrate_action.triggered.connect(lambda: self.integrateButtons['Integrate'].click())
+		self.addAction(integrate_action)
+
+		# Plot: Ctrl+P
+		plot_action = QAction("Plot", self)
+		plot_action.setShortcut(QKeySequence("Ctrl+P"))
+		plot_action.triggered.connect(lambda: self.buttons['Plot'].click())
+		self.addAction(plot_action)
+
+		# Load: Ctrl+L
+		load_action = QAction("Load", self)
+		load_action.setShortcut(QKeySequence("Ctrl+L"))
+		load_action.triggered.connect(lambda: self.buttons['Load'].click())
+		self.addAction(load_action)
+
+	def _restoreWindowState(self):
+		"""Restore window size and position from settings."""
+		settings = QSettings("LCICPMS", "DataViewer")
+		geometry = settings.value("geometry")
+		if geometry:
+			self.restoreGeometry(geometry)
+
+	def closeEvent(self, event):
+		"""Save window state before closing."""
+		settings = QSettings("LCICPMS", "DataViewer")
+		settings.setValue("geometry", self.saveGeometry())
+		event.accept()
 
