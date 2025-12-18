@@ -1,1 +1,25 @@
 **/__pycache__/**
+
+# Build artifacts
+build/
+dist/
+
+# Distribution packages
+*.dmg
+*.tar.gz
+*.zip
+*.exe
+
+# PyInstaller
+*.spec.bak
+
+# Python
+*.pyc
+*.pyo
+*.egg-info/
+.eggs/
+
+# Virtual environments
+env/
+venv/
+ENV/
