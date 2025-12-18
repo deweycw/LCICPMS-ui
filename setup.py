@@ -14,10 +14,10 @@ with open(os.path.join(this_directory, 'requirements.txt'), encoding='utf-8') as
 
 setup(
     name='lcicpms-ui',
-    version='0.2.1',
+    version='1.0.0',
     author='Christian Dewey',
     author_email='',
-    description='A PyQt5 application for analyzing LC-ICP-MS chromatography data',
+    description='A PyQt6 application for analyzing LC-ICP-MS chromatography data',
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://github.com/deweycw/LCICPMS-ui',
