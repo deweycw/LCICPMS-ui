@@ -229,6 +229,25 @@ git push origin v0.3.0
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
+## Citing
+
+If you use LCICPMS-ui in your research, please cite it:
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.XXXXXXX.svg)](https://doi.org/10.5281/zenodo.XXXXXXX)
+
+```bibtex
+@software{dewey_lcicpms_ui,
+  author       = {Dewey, Christian and Boiteau, Rene},
+  title        = {LCICPMS-ui: LC-ICP-MS Data Viewer},
+  year         = {2025},
+  publisher    = {Zenodo},
+  doi          = {10.5281/zenodo.XXXXXXX},
+  url          = {https://doi.org/10.5281/zenodo.XXXXXXX}
+}
+```
+
+> **Note**: Replace `XXXXXXX` with the actual Zenodo DOI after the first release is archived.
+
 ## License
 
 This project is available for scientific research and educational purposes.
