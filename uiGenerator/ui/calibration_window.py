@@ -177,22 +177,90 @@ class Calibration(QWidget):
 
 		self.generalLayout.addLayout(tableLayout)
 
+	def _extractConcentrationFromFilename(self, filename):
+		"""Extract concentration value from filename.
+
+		Looks for patterns like:
+		- '10ppb', '100 ppb', '10_ppb'
+		- 'blank' or 'blk' (returns 0)
+		- Just numbers that might be concentrations
+
+		Returns: (concentration_value, standard_name) or (None, None) if not found
+		"""
+		import re
+
+		# Remove file extension
+		name = filename.lower().replace('.csv', '').replace('.txt', '')
+
+		# Check for blank
+		if 'blank' in name or 'blk' in name:
+			return 0.0, 'Blank'
+
+		# Look for patterns like "10ppb", "10 ppb", "10_ppb", "100ppm"
+		# Match number (int or float) followed by optional space/underscore and unit
+		patterns = [
+			r'(\d+\.?\d*)\s*ppb',      # 10ppb, 10.5ppb, 10 ppb
+			r'(\d+\.?\d*)\s*ppm',      # 10ppm (will need conversion note)
+			r'(\d+\.?\d*)_ppb',        # 10_ppb
+			r'(\d+\.?\d*)_ppm',        # 10_ppm
+			r'std[_\s]*(\d+\.?\d*)',   # std10, std_10, std 10
+			r'(\d+\.?\d*)[_\s]*std',   # 10std, 10_std
+		]
+
+		for pattern in patterns:
+			match = re.search(pattern, name)
+			if match:
+				value = float(match.group(1))
+				# Generate a nice standard name
+				if 'ppm' in pattern:
+					std_name = f"Std {value} ppm"
+					# Note: user may need to convert ppm to ppb
+					print(f"  Note: Found ppm in filename - value shown is {value} ppm")
+				else:
+					std_name = f"Std {value} ppb"
+				return value, std_name
+
+		# Try to find any number in the filename as a fallback
+		numbers = re.findall(r'(\d+\.?\d*)', name)
+		# Filter out very small numbers that are likely not concentrations
+		concentrations = [float(n) for n in numbers if float(n) >= 0.1]
+		if concentrations:
+			# Use the first reasonable number found
+			value = concentrations[0]
+			return value, f"Std {value}"
+
+		return None, None
+
 	def addStandardRow(self, filename, standard_name=""):
 		"""Add a new row to the standards table."""
 		row = self.standardsTable.rowCount()
 		self.standardsTable.insertRow(row)
+
+		# Try to extract concentration from filename
+		suggested_conc, suggested_name = self._extractConcentrationFromFilename(filename)
 
 		# File column (read-only)
 		file_item = QTableWidgetItem(filename)
 		file_item.setFlags(file_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
 		self.standardsTable.setItem(row, 0, file_item)
 
-		# Standard Name column (editable)
-		name_item = QTableWidgetItem(standard_name if standard_name else f"Std {row + 1}")
+		# Standard Name column (editable) - use suggested name if available
+		if standard_name:
+			name_text = standard_name
+		elif suggested_name:
+			name_text = suggested_name
+		else:
+			name_text = f"Std {row + 1}"
+		name_item = QTableWidgetItem(name_text)
 		self.standardsTable.setItem(row, 1, name_item)
 
-		# Concentration column (editable)
-		conc_item = QTableWidgetItem("")
+		# Concentration column (editable) - pre-fill with suggested concentration
+		if suggested_conc is not None:
+			conc_text = str(suggested_conc)
+			print(f"  Suggested concentration from filename: {suggested_conc} ppb")
+		else:
+			conc_text = ""
+		conc_item = QTableWidgetItem(conc_text)
 		self.standardsTable.setItem(row, 2, conc_item)
 
 		# Peak Area column (read-only, will be filled after integration)
@@ -271,32 +339,98 @@ class Calibration(QWidget):
 	def _createActionButtons(self):
 		"""Create the action buttons for integration and calibration."""
 		self.integrateButtons = {}
-		buttonsLayout = QHBoxLayout()
 
-		# Integrate button - integrates the selected range for the selected standard
+		# Common button style
+		buttonStyle = """
+			QPushButton {
+				padding: 6px 12px;
+				border: 1px solid #ccc;
+				border-radius: 4px;
+				background-color: #f8f8f8;
+			}
+			QPushButton:hover {
+				background-color: #e8e8e8;
+				border-color: #999;
+			}
+			QPushButton:pressed {
+				background-color: #d8d8d8;
+			}
+			QPushButton:disabled {
+				color: #999;
+				background-color: #f0f0f0;
+			}
+		"""
+
+		# Apply style to Directory button (already created)
+		self.buttons['Directory'].setStyleSheet(buttonStyle)
+		self.buttons['Reset'].setStyleSheet(buttonStyle)
+		self.buttons['Clear Plot'].setStyleSheet(buttonStyle)
+
+		buttonsLayout = QHBoxLayout()
+		buttonsLayout.setSpacing(8)
+
+		# Integration buttons group
 		self.integrateButtons['Integrate'] = QPushButton("Integrate")
-		self.integrateButtons['Integrate'].setToolTip("Integrate the selected range and store peak area for selected standard")
-		self.integrateButtons['Integrate'].setFixedSize(100, 40)
+		self.integrateButtons['Integrate'].setToolTip("Integrate the selected range and store peak area")
 		self.integrateButtons['Integrate'].setEnabled(False)
+		self.integrateButtons['Integrate'].setStyleSheet(buttonStyle)
 		buttonsLayout.addWidget(self.integrateButtons['Integrate'])
 
-		# Calculate Curve button
+		self.integrateButtons['Suggest Range'] = QPushButton("Suggest Range")
+		self.integrateButtons['Suggest Range'].setToolTip("Reset to default integration range")
+		self.integrateButtons['Suggest Range'].setStyleSheet(buttonStyle)
+		buttonsLayout.addWidget(self.integrateButtons['Suggest Range'])
+
+		self.integrateButtons['Reset Integration'] = QPushButton("Reset Range")
+		self.integrateButtons['Reset Integration'].setToolTip("Clear the integration range selection")
+		self.integrateButtons['Reset Integration'].setStyleSheet(buttonStyle)
+		buttonsLayout.addWidget(self.integrateButtons['Reset Integration'])
+
+		# Separator
+		separator = QLabel("|")
+		separator.setStyleSheet("color: #ccc; margin: 0 4px;")
+		buttonsLayout.addWidget(separator)
+
+		# Calculate button (highlighted)
 		self.integrateButtons['Calculate Curve'] = QPushButton("Calculate Curve")
 		self.integrateButtons['Calculate Curve'].setToolTip("Calculate calibration curves from all standards")
-		self.integrateButtons['Calculate Curve'].setFixedSize(120, 40)
+		self.integrateButtons['Calculate Curve'].setStyleSheet("""
+			QPushButton {
+				padding: 6px 12px;
+				border: 1px solid #4682b4;
+				border-radius: 4px;
+				background-color: #4682b4;
+				color: white;
+				font-weight: bold;
+			}
+			QPushButton:hover {
+				background-color: #5a9fd4;
+			}
+			QPushButton:pressed {
+				background-color: #3a72a4;
+			}
+		""")
 		buttonsLayout.addWidget(self.integrateButtons['Calculate Curve'])
 
 		buttonsLayout.addStretch()
+
+		# Control buttons on the right
+		buttonsLayout.addWidget(self.buttons['Clear Plot'])
+		buttonsLayout.addWidget(self.buttons['Reset'])
 
 		self.generalLayout.addLayout(buttonsLayout)
 
 	def _createListbox(self):
 		listBoxLayout = QVBoxLayout()
 
-		# Add label for the file list (matching main window style)
+		# Header row with label and Directory button
+		headerLayout = QHBoxLayout()
 		fileListLabel = QLabel("Calibration Standard Files")
 		fileListLabel.setStyleSheet("font-weight: bold;")
-		listBoxLayout.addWidget(fileListLabel)
+		headerLayout.addWidget(fileListLabel)
+		headerLayout.addStretch()
+		headerLayout.addWidget(self.buttons['Directory'])
+		listBoxLayout.addLayout(headerLayout)
 
 		self.listwidget = QListWidget()
 		listBoxLayout.addWidget(self.listwidget)
@@ -304,23 +438,19 @@ class Calibration(QWidget):
 		self.generalLayout.addLayout(listBoxLayout)
 
 	def _createButtons(self):
-		"""Create the buttons."""
+		"""Create the control buttons (will be added to action buttons row)."""
 		self.buttons = {}
-		buttonsLayout = QGridLayout()
-		# Button text | position on the QGridLayout | tooltip
-		buttons = {
-			'Directory': (0, 0, 'Select directory containing calibration standard files'),
-			'Reset': (0, 1, 'Reset calibration data and clear selections'),
-			'Clear Plot': (0, 2, 'Clear the plot display')
-		}
-		# Create the buttons and add them to the grid layout
-		for btnText, (row, col, tooltip) in buttons.items():
-			self.buttons[btnText] = QPushButton(btnText)
-			self.buttons[btnText].setToolTip(tooltip)
-			self.buttons[btnText].setFixedSize(100, 40)
-			buttonsLayout.addWidget(self.buttons[btnText], row, col)
-		# Add buttonsLayout to the general layout
-		self.generalLayout.addLayout(buttonsLayout)
+		# These buttons will be added to the action buttons row at the bottom
+		# Just create them here, they'll be added to layout in _createActionButtons
+
+		self.buttons['Directory'] = QPushButton("📁 Directory")
+		self.buttons['Directory'].setToolTip("Select directory containing calibration standard files")
+
+		self.buttons['Reset'] = QPushButton("Reset All")
+		self.buttons['Reset'].setToolTip("Reset calibration data and clear selections")
+
+		self.buttons['Clear Plot'] = QPushButton("Clear Plot")
+		self.buttons['Clear Plot'].setToolTip("Clear the plot display")
 	
 	def clicked(self):
 		item = self.listwidget.currentItem()

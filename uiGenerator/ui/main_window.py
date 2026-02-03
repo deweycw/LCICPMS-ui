@@ -156,7 +156,7 @@ class PyLCICPMSUi(QMainWindow):
 
 		# Create separate legend panel
 		self._createLegendPanel()
-		plotLayout.addWidget(self.legendPanel, stretch=1)
+		plotLayout.addWidget(self.legendPanel, stretch=0)  # Don't stretch - use natural size
 
 		# Create a container widget for plot + legend (needed for export)
 		self.plotContainer = QWidget()
@@ -164,13 +164,14 @@ class PyLCICPMSUi(QMainWindow):
 		self.plotContainer.setLayout(plotLayout)
 
 		self.chroma = self.plotSpace
-		self.generalLayout.addWidget(self.plotContainer)
+		self.plotContainer.setMinimumHeight(300)  # Ensure minimum plot visibility
+		self.generalLayout.addWidget(self.plotContainer, stretch=1)  # Expand to fill available space
 
 	def _createLegendPanel(self):
 		"""Create a separate panel for the legend with polished styling."""
 		self.legendPanel = QWidget()
-		self.legendPanel.setMinimumWidth(250)
-		self.legendPanel.setMaximumWidth(400)  # Increased to accommodate comparison mode labels
+		# Start with a reasonable default width - will be adjusted dynamically in updateLegend
+		self.legendPanel.setFixedWidth(140)
 
 		# Set white background and border for professional appearance
 		self.legendPanel.setStyleSheet("""
@@ -186,20 +187,31 @@ class PyLCICPMSUi(QMainWindow):
 		legendLayout.setSpacing(8)
 		self.legendPanel.setLayout(legendLayout)
 
-		# Container for legend items (will be wrapped in scroll area if needed)
+		# Container for legend items - uses scroll area that expands to fill available space
 		self.legendContainer = QWidget()
-		self.legendContainer.setStyleSheet("background-color: white;")
+		self.legendContainer.setStyleSheet("background-color: white; border: none;")
 		self.legendItemsLayout = QVBoxLayout()
-		self.legendItemsLayout.setSpacing(12)  # Increased spacing between items
-		self.legendItemsLayout.setContentsMargins(12, 12, 12, 12)
+		self.legendItemsLayout.setSpacing(8)  # Spacing between items
+		self.legendItemsLayout.setContentsMargins(4, 4, 4, 4)
+		self.legendItemsLayout.setAlignment(Qt.AlignmentFlag.AlignTop)  # Align items to top
 		self.legendContainer.setLayout(self.legendItemsLayout)
 
-		# Store reference to layout so we can add scroll area later if needed
-		self.legendContentLayout = legendLayout
-		legendLayout.addWidget(self.legendContainer)
+		# Create scroll area that expands to fill available space
+		self.legendScrollArea = QScrollArea()
+		self.legendScrollArea.setWidgetResizable(True)
+		self.legendScrollArea.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+		self.legendScrollArea.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+		self.legendScrollArea.setStyleSheet("""
+			QScrollArea {
+				background-color: white;
+				border: none;
+			}
+		""")
+		self.legendScrollArea.setWidget(self.legendContainer)
 
-		# Add spacer at bottom
-		legendLayout.addStretch()
+		# Store reference to layout
+		self.legendContentLayout = legendLayout
+		legendLayout.addWidget(self.legendScrollArea, stretch=1)  # Stretch to fill available space
 
 	def updateLegend(self, elements, color_dict, format_isotopes=True):
 		"""Update the legend with current elements and colors.
@@ -210,119 +222,93 @@ class PyLCICPMSUi(QMainWindow):
 			format_isotopes: If True, apply subscript/superscript formatting for isotopes.
 			                 If False, display labels as plain text (for file names).
 		"""
+		from PyQt6.QtGui import QFontMetrics
+
 		# Clear existing legend items
 		while self.legendItemsLayout.count():
 			item = self.legendItemsLayout.takeAt(0)
 			if item.widget():
 				item.widget().deleteLater()
 
-		# Check if we need a scroll area (more than 6 items)
-		needs_scroll = len(elements) > 6
+		# Track max label width for dynamic sizing
+		max_label_width = 0
+		font = self.font()
+		font.setPointSize(12)
+		metrics = QFontMetrics(font)
 
-		# Remove existing scroll area or container from layout if present
-		# First, check what's currently in the layout and remove it
-		while self.legendContentLayout.count() > 0:  # No title anymore, so clear everything
-			item = self.legendContentLayout.takeAt(0)  # Remove first item (scroll area or container)
-			if item.widget():
-				widget = item.widget()
-				widget.setParent(None)  # Remove from parent instead of deleteLater
-
-		# Add new legend items with enhanced styling
+		# Add new legend items
 		from uiGenerator.utils.analyte_formatter import format_analyte_html
 		for element in elements:
 			itemWidget = QWidget()
 			itemWidget.setStyleSheet("""
 				QWidget {
 					background-color: white;
-					padding: 6px;
-					border-radius: 3px;
+					border: none;
 				}
 				QWidget:hover {
 					background-color: #f0f0f0;
 				}
 			""")
 			itemLayout = QHBoxLayout()
-			itemLayout.setContentsMargins(6, 6, 6, 6)
-			itemLayout.setSpacing(10)
+			itemLayout.setContentsMargins(4, 4, 4, 4)
+			itemLayout.setSpacing(8)
 			itemWidget.setLayout(itemLayout)
 
-			# Color indicator box with enhanced styling
+			# Color indicator box
 			colorBox = QLabel()
 			color = color_dict.get(element, (0.5, 0.5, 0.5))
 
 			# Convert color to RGB values
 			if isinstance(color, str):
-				# Handle string color names
 				if color == 'gray' or color == 'grey':
 					r, g, b = 128, 128, 128
 				else:
-					# Default for unknown string colors
 					r, g, b = 128, 128, 128
 			elif hasattr(color, '__iter__') and len(color) >= 3:
-				# Handle tuple/list of RGB values (0-1 range from seaborn)
 				r, g, b = int(color[0] * 255), int(color[1] * 255), int(color[2] * 255)
 			else:
-				# Default fallback
 				r, g, b = 128, 128, 128
 
 			colorBox.setStyleSheet(f"""
 				QLabel {{
 					background-color: rgb({r},{g},{b});
-					border: 2px solid #000;
+					border: 1px solid #333;
 					border-radius: 2px;
 				}}
 			""")
-			colorBox.setFixedSize(18, 18)
+			colorBox.setFixedSize(16, 16)
 			itemLayout.addWidget(colorBox)
 
-			# Element label with formatted text and enhanced styling
-			# Only apply isotope formatting if requested (not for file names in comparison mode)
+			# Element label
 			formatted_name = format_analyte_html(element) if format_isotopes else element
 			elementLabel = QLabel(formatted_name)
 			elementLabel.setStyleSheet("""
 				QLabel {
-					font-size: 13px;
-					font-weight: 500;
+					font-size: 12px;
 					color: #000;
-					padding-left: 2px;
 					background-color: transparent;
 					border: none;
 				}
 			""")
 			elementLabel.setTextFormat(Qt.TextFormat.RichText)
-			# Enable word wrap for long sample names in comparison mode
-			elementLabel.setWordWrap(True)
-			elementLabel.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-			elementLabel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-			# Set minimum width to prevent extreme shrinking
-			elementLabel.setMinimumWidth(150)
-			itemLayout.addWidget(elementLabel, stretch=1)
+			itemLayout.addWidget(elementLabel)
+
+			# Measure plain text width (strip HTML tags for measurement)
+			plain_text = element  # Use original text for measurement
+			label_width = metrics.horizontalAdvance(plain_text)
+			max_label_width = max(max_label_width, label_width)
 
 			self.legendItemsLayout.addWidget(itemWidget)
 
-		# Wrap in scroll area if needed
-		if needs_scroll:
-			if not hasattr(self, 'legendScrollArea') or self.legendScrollArea is None:
-				self.legendScrollArea = QScrollArea()
-				self.legendScrollArea.setWidgetResizable(True)
-				self.legendScrollArea.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-				self.legendScrollArea.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-				self.legendScrollArea.setStyleSheet("""
-					QScrollArea {
-						background-color: white;
-						border: none;
-					}
-				""")
-			self.legendScrollArea.setWidget(self.legendContainer)
-			self.legendContentLayout.addWidget(self.legendScrollArea)
-		else:
-			# Add container directly without scroll area
-			self.legendScrollArea = None
-			self.legendContentLayout.addWidget(self.legendContainer)
-
-		# Add spacer back if it was removed
-		if self.legendContentLayout.count() < 2:
-			self.legendContentLayout.addStretch()
+		# Dynamically adjust legend panel width based on content
+		# Add padding for: color box (16) + spacing (8) + margins (24) + scrollbar (20) + border (4)
+		padding = 72
+		desired_width = max_label_width + padding
+		# Clamp to min/max range
+		min_width = 120
+		max_width = 250
+		new_width = max(min_width, min(desired_width, max_width))
+		self.legendPanel.setFixedWidth(new_width)
 
 	def _setupCrosshair(self):
 		"""Setup crosshair cursor and coordinates display."""
@@ -365,6 +351,10 @@ class PyLCICPMSUi(QMainWindow):
 			self.coordLabel.setText(f'Time: {x:.2f} min\nIntensity: {y:.0f} cps')
 			self.coordLabel.setPos(x, y)
 
+			# Update status bar with retention time
+			if hasattr(self, 'status_mouse_label'):
+				self.status_mouse_label.setText(f'Time: {x:.2f} min')
+
 			# Show crosshair
 			self.vLine.setVisible(True)
 			self.hLine.setVisible(True)
@@ -374,6 +364,9 @@ class PyLCICPMSUi(QMainWindow):
 			self.vLine.setVisible(False)
 			self.hLine.setVisible(False)
 			self.coordLabel.setVisible(False)
+			# Reset status bar text when mouse leaves
+			if hasattr(self, 'status_mouse_label'):
+				self.status_mouse_label.setText('Time: --')
 
 	def _createDirEntry(self):
 		self.DirEntry = QLineEdit()
@@ -402,30 +395,140 @@ class PyLCICPMSUi(QMainWindow):
 		self.integrateLayout.addStretch()
 
 	def _createIntegrateLayout(self):
-		"""Create the integrate buttons in a single row."""
+		"""Create the integrate buttons in a single row with consistent styling."""
 		self.integrateButtons = {}
 		self.intButtonLayout = QHBoxLayout()
 		self.intButtonLayout.setSpacing(8)
 
-		# Button text | tooltip
-		intbuttons = [
-			('Integrate', 'Integrate peaks in selected range (Ctrl+I)'),
-			('Reset Integration', 'Clear integration ranges and results'),
-			('115In Correction', 'Apply indium normalization correction'),
-			('Load Cal.', 'Load calibration file'),
-			('Calibrate', 'Open calibration window'),
-		]
+		# Integration action buttons
+		self.integrateButtons['Integrate'] = QPushButton("Integrate")
+		self.integrateButtons['Integrate'].setToolTip("Integrate peaks in selected range (Ctrl+I)")
+		self.integrateButtons['Integrate'].setStyleSheet(self._buttonStyle)
+		self.intButtonLayout.addWidget(self.integrateButtons['Integrate'])
 
-		# Create the buttons in a single row
-		for btnText, tooltip in intbuttons:
-			self.integrateButtons[btnText] = QPushButton(btnText)
-			self.integrateButtons[btnText].setToolTip(tooltip)
-			self.integrateButtons[btnText].setFixedHeight(32)
-			self.intButtonLayout.addWidget(self.integrateButtons[btnText])
+		self.integrateButtons['Reset Integration'] = QPushButton("Reset Range")
+		self.integrateButtons['Reset Integration'].setToolTip("Clear integration ranges")
+		self.integrateButtons['Reset Integration'].setStyleSheet(self._buttonStyle)
+		self.intButtonLayout.addWidget(self.integrateButtons['Reset Integration'])
+
+		# Separator
+		sep1 = QLabel("|")
+		sep1.setStyleSheet("color: #ccc; margin: 0 4px;")
+		self.intButtonLayout.addWidget(sep1)
+
+		# Calibration buttons
+		self.integrateButtons['Load Cal.'] = QPushButton("Load Cal.")
+		self.integrateButtons['Load Cal.'].setToolTip("Load calibration file")
+		self.integrateButtons['Load Cal.'].setStyleSheet(self._buttonStyle)
+		self.intButtonLayout.addWidget(self.integrateButtons['Load Cal.'])
+
+		self.integrateButtons['Calibrate'] = QPushButton("Calibrate")
+		self.integrateButtons['Calibrate'].setToolTip("Open calibration window")
+		self.integrateButtons['Calibrate'].setStyleSheet("""
+			QPushButton {
+				padding: 6px 12px;
+				border: 1px solid #4682b4;
+				border-radius: 4px;
+				background-color: #4682b4;
+				color: white;
+				font-weight: bold;
+			}
+			QPushButton:hover {
+				background-color: #5a9fd4;
+			}
+			QPushButton:pressed {
+				background-color: #3a72a4;
+			}
+			QPushButton:disabled {
+				background-color: #a0a0a0;
+				border-color: #a0a0a0;
+			}
+		""")
+		self.intButtonLayout.addWidget(self.integrateButtons['Calibrate'])
+
+		# Separator
+		sep2 = QLabel("|")
+		sep2.setStyleSheet("color: #ccc; margin: 0 4px;")
+		self.intButtonLayout.addWidget(sep2)
+
+		self.integrateButtons['115In Correction'] = QPushButton("¹¹⁵In Corr.")
+		self.integrateButtons['115In Correction'].setToolTip("Apply indium normalization correction")
+		self.integrateButtons['115In Correction'].setStyleSheet(self._buttonStyle)
+		self.intButtonLayout.addWidget(self.integrateButtons['115In Correction'])
+
+		self.intButtonLayout.addStretch()
+
+		# Right side: view controls
+		self.intButtonLayout.addWidget(self.buttons['Select Elements'])
+		self.intButtonLayout.addWidget(self.compareFilesBtn)
+		self.intButtonLayout.addWidget(self.buttons['Export Plot'])
+		self.intButtonLayout.addWidget(self.buttons['Reset'])
 
 		self.integrateLayout.addLayout(self.intButtonLayout)
+
+		# Integration results display panel
+		self._createIntegrationResultsPanel()
+
 		# Add buttonsLayout to the general layout
 		self.generalLayout.addLayout(self.integrateLayout)
+
+	def _createIntegrationResultsPanel(self):
+		"""Create panel to display integration results (peak areas and concentrations)."""
+		self.integrationResultsPanel = QWidget()
+		self.integrationResultsPanel.setVisible(False)  # Hidden until integration is done
+
+		resultsLayout = QHBoxLayout(self.integrationResultsPanel)
+		resultsLayout.setContentsMargins(5, 5, 5, 5)
+		resultsLayout.setSpacing(10)
+
+		# Results label (will be updated dynamically)
+		self.integrationResultsLabel = QLabel("")
+		self.integrationResultsLabel.setWordWrap(True)
+		self.integrationResultsLabel.setStyleSheet("""
+			QLabel {
+				background-color: #e8f4e8;
+				border: 2px solid #4CAF50;
+				border-radius: 5px;
+				padding: 8px 12px;
+				font-family: "Menlo", "Consolas", "Courier New";
+				font-size: 12px;
+			}
+		""")
+		resultsLayout.addWidget(self.integrationResultsLabel, 1)
+
+		# Close button
+		closeBtn = QPushButton("×")
+		closeBtn.setFixedSize(24, 24)
+		closeBtn.setStyleSheet("""
+			QPushButton {
+				background-color: #ddd;
+				border: none;
+				border-radius: 12px;
+				font-weight: bold;
+				font-size: 14px;
+			}
+			QPushButton:hover {
+				background-color: #ccc;
+			}
+		""")
+		closeBtn.clicked.connect(self.hideIntegrationResults)
+		resultsLayout.addWidget(closeBtn)
+
+		self.integrateLayout.addWidget(self.integrationResultsPanel)
+
+	def showIntegrationResults(self, results_text):
+		"""Show integration results in the results panel.
+
+		Args:
+			results_text: Formatted string with integration results
+		"""
+		self.integrationResultsLabel.setText(results_text)
+		self.integrationResultsPanel.setVisible(True)
+
+	def hideIntegrationResults(self):
+		"""Hide the integration results panel."""
+		self.integrationResultsPanel.setVisible(False)
+		self.integrationResultsLabel.setText("")
 
 	def _createListbox(self):
 		"""Create file list with collapsible comparison panel."""
@@ -433,9 +536,15 @@ class PyLCICPMSUi(QMainWindow):
 
 		# Left side: Main file list (takes more space now)
 		leftLayout = QVBoxLayout()
+
+		# Header with label and Directory button
+		headerLayout = QHBoxLayout()
 		fileListLabel = QLabel("Data Files")
 		fileListLabel.setStyleSheet("font-weight: bold;")
-		leftLayout.addWidget(fileListLabel)
+		headerLayout.addWidget(fileListLabel)
+		headerLayout.addStretch()
+		headerLayout.addWidget(self.buttons['Directory'])
+		leftLayout.addLayout(headerLayout)
 
 		self.listwidget = QListWidget()
 		self.listwidget.setMinimumHeight(100)  # Ensure minimum visibility
@@ -510,49 +619,72 @@ class PyLCICPMSUi(QMainWindow):
 		self.intButtonLayout.addWidget(self.calib_label)
 
 	def _createButtons(self):
-		"""Create the buttons."""
+		"""Create the buttons with consistent modern styling."""
 		self.buttons = {}
-		buttonsLayout = QGridLayout()
-		# Button text | position on the QGridLayout | tooltip
-		buttons = {
-			'Reset': (0, 0, 'Reset plot view to original scale'),
-			'Export Plot': (0, 1, 'Export plot as PNG, SVG, or PDF'),
-			'Directory': (0, 2, 'Select directory containing data files (Ctrl+O)'),
-			'Select Elements': (0, 3, 'Open periodic table to select elements (Ctrl+E)')
-		}
-		# Create the buttons and add them to the grid layout
-		for btnText, (row, col, tooltip) in buttons.items():
-			self.buttons[btnText] = QPushButton(btnText)
-			self.buttons[btnText].setToolTip(tooltip)
-			if btnText == 'Select Elements':
-				self.buttons[btnText].setFixedSize(120, 40)
-			elif btnText == 'Export Plot':
-				self.buttons[btnText].setFixedSize(90, 40)
-			else:
-				self.buttons[btnText].setFixedSize(80, 40)
-			buttonsLayout.addWidget(self.buttons[btnText], row, col)
 
-		# Add comparison mode button to button row for prominence
+		# Common button style
+		self._buttonStyle = """
+			QPushButton {
+				padding: 6px 12px;
+				border: 1px solid #ccc;
+				border-radius: 4px;
+				background-color: #f8f8f8;
+			}
+			QPushButton:hover {
+				background-color: #e8e8e8;
+				border-color: #999;
+			}
+			QPushButton:pressed {
+				background-color: #d8d8d8;
+			}
+			QPushButton:disabled {
+				color: #999;
+				background-color: #f0f0f0;
+			}
+		"""
+
+		# Create buttons (Directory will be added near file list)
+		self.buttons['Directory'] = QPushButton("📁 Directory")
+		self.buttons['Directory'].setToolTip("Select directory containing data files (Ctrl+O)")
+		self.buttons['Directory'].setStyleSheet(self._buttonStyle)
+
+		self.buttons['Select Elements'] = QPushButton("🔬 Elements")
+		self.buttons['Select Elements'].setToolTip("Open periodic table to select elements (Ctrl+E)")
+		self.buttons['Select Elements'].setStyleSheet(self._buttonStyle)
+
+		self.buttons['Reset'] = QPushButton("Reset")
+		self.buttons['Reset'].setToolTip("Reset plot view")
+		self.buttons['Reset'].setStyleSheet(self._buttonStyle)
+
+		self.buttons['Export Plot'] = QPushButton("Export")
+		self.buttons['Export Plot'].setToolTip("Export plot as PNG, SVG, or PDF")
+		self.buttons['Export Plot'].setStyleSheet(self._buttonStyle)
+
+		# Compare button with toggle style
 		self.compareFilesBtn = QPushButton('Compare')
 		self.compareFilesBtn.setCheckable(True)
-		self.compareFilesBtn.setToolTip('Compare data from multiple files (up to 12 files, requires 2+ files in comparison list, 1 element only)')
-		self.compareFilesBtn.setEnabled(False)  # Disabled until 2+ files added
+		self.compareFilesBtn.setToolTip('Compare data from multiple files (up to 12)')
+		self.compareFilesBtn.setEnabled(False)
 		self.compareFilesBtn.setStyleSheet("""
 			QPushButton {
-				font-weight: bold;
-				padding: 5px;
+				padding: 6px 12px;
+				border: 1px solid #ccc;
+				border-radius: 4px;
+				background-color: #f8f8f8;
+			}
+			QPushButton:hover {
+				background-color: #e8e8e8;
 			}
 			QPushButton:checked {
 				background-color: #4682b4;
 				color: white;
+				border-color: #4682b4;
+			}
+			QPushButton:disabled {
+				color: #999;
+				background-color: #f0f0f0;
 			}
 		""")
-		if 'Export Plot' in self.buttons:
-			self.compareFilesBtn.setFixedSize(self.buttons['Export Plot'].size())
-		buttonsLayout.addWidget(self.compareFilesBtn, 0, 4)
-
-		# Add buttonsLayout to the general layout
-		self.generalLayout.addLayout(buttonsLayout)
 	
 	def clicked(self):
 		print('hh')
@@ -838,11 +970,14 @@ class PyLCICPMSUi(QMainWindow):
 		self.setStatusBar(self.statusBar)
 
 		# Create permanent widgets for status bar
+		self.status_mouse_label = QLabel("Time: --")  # Mouse position (retention time)
+		self.status_mouse_label.setMinimumWidth(100)
 		self.status_file_label = QLabel("No file loaded")
 		self.status_elements_label = QLabel("Elements: 0")
 		self.status_data_label = QLabel("")
 
-		# Add labels to status bar
+		# Add labels to status bar (mouse position on far left)
+		self.statusBar.addWidget(self.status_mouse_label)
 		self.statusBar.addWidget(self.status_file_label, 1)  # Stretch factor 1
 		self.statusBar.addPermanentWidget(self.status_elements_label)
 		self.statusBar.addPermanentWidget(self.status_data_label)
@@ -1134,8 +1269,14 @@ class PyLCICPMSUi(QMainWindow):
 			)
 
 	def closeEvent(self, event):
-		"""Save window state before closing."""
+		"""Save window state and close child windows before closing."""
 		settings = QSettings("LCICPMS", "DataViewer")
 		settings.setValue("geometry", self.saveGeometry())
+
+		# Close calibration window if open
+		if hasattr(self, '_controller') and self._controller is not None:
+			if hasattr(self._controller, 'calWindow') and self._controller.calWindow is not None:
+				self._controller.calWindow.close()
+
 		event.accept()
 

@@ -54,31 +54,27 @@ class PTCtrl:
 		"""Clear all selected elements."""
 		# Clear the elements without confirmation
 		self._mainview.activeElements = []
-		for element, btn in self._view.periodicTable.items():
-			col = self._mainview.periodicTableDict[element][2]
-			self._view.periodicTable[element].setStyleSheet('background-color : '+ col)
+		for element in self._view.periodicTable:
 			self._mainview.periodicTableDict[element][3] = 0
+		# Update all button appearances
+		self._view.updateAllElementButtons()
 
 	def _resetPeriodicTable(self):
 		"""Select all available elements in the periodic table."""
 		self._mainview.activeElements = self._mainview._elements_in_file.copy()
 
-		# Iterate through all periodic table buttons
-		for buttonkey, button in self._view.periodicTable.items():
-			element_symbol = buttonkey.split('\n')[1]  # Extract element symbol (e.g., "Fe" from "56\nFe")
-
-			# Check if this element has any analytes in the active elements
+		# Update the attr[3] flags for tracking
+		for buttonkey in self._view.periodicTable:
+			element_symbol = buttonkey.split('\n')[1]
 			if element_symbol in self._mainview._analytes_by_element:
 				available_analytes = self._mainview._analytes_by_element[element_symbol]
-				# Check if any of the available analytes are in activeElements
 				if any(analyte in self._mainview.activeElements for analyte in available_analytes):
-					self._view.periodicTable[buttonkey].setStyleSheet('background-color : yellow')
 					self._mainview.periodicTableDict[buttonkey][3] = 1
 				else:
-					# Reset to original color if no analytes are active
-					col = self._mainview.periodicTableDict[buttonkey][2]
-					self._view.periodicTable[buttonkey].setStyleSheet('background-color : ' + col)
 					self._mainview.periodicTableDict[buttonkey][3] = 0
+
+		# Update all button appearances
+		self._view.updateAllElementButtons()
 
 	def _format_analyte_display(self, analyte):
 		"""Format analyte string with Unicode superscripts, subscripts, and parentheses for pipe-separated values."""
@@ -159,20 +155,34 @@ class PTCtrl:
 			if analyte not in self._mainview.activeElements:
 				self._mainview.activeElements.append(analyte)
 				self._mainview.periodicTableDict[element][3] = 1
-				self._view.periodicTable[element].setStyleSheet('background-color : yellow')
 			else:
 				self._mainview.activeElements.remove(analyte)
 				self._mainview.periodicTableDict[element][3] = 0
-				col = self._mainview.periodicTableDict[element][2]
-				self._view.periodicTable[element].setStyleSheet('background-color : ' + col)
+			# Update button appearance and counter
+			self._view.updateElementButton(element)
+			self._view.updateSelectionCounter()
 			return
 
 		# Create dialog to select analytes
 		dialog = QDialog(self._view)
 		dialog.setWindowTitle(f'Select Analytes for {split_el}')
+		dialog.setStyleSheet("""
+			QDialog {
+				background-color: #f8f8f8;
+			}
+			QLabel {
+				font-size: 13px;
+				padding: 4px;
+			}
+			QCheckBox {
+				font-size: 13px;
+				padding: 4px;
+			}
+		""")
 		layout = QVBoxLayout()
 
 		label = QLabel(f'Select analytes/isotopes for {split_el}:')
+		label.setStyleSheet("font-weight: bold;")
 		layout.addWidget(label)
 
 		# Create checkboxes for each available analyte
@@ -181,7 +191,6 @@ class PTCtrl:
 			formatted_text = self._format_analyte_display(analyte)
 			cb = QCheckBox()
 			cb.setText(formatted_text)
-			# Note: QCheckBox doesn't support setTextFormat like QLabel does
 			cb.setChecked(analyte in self._mainview.activeElements)
 			checkboxes[analyte] = cb
 			layout.addWidget(cb)
@@ -190,6 +199,30 @@ class PTCtrl:
 		button_layout = QHBoxLayout()
 		ok_button = QPushButton('OK')
 		cancel_button = QPushButton('Cancel')
+		ok_button.setStyleSheet("""
+			QPushButton {
+				padding: 6px 16px;
+				border: 1px solid #4682b4;
+				border-radius: 4px;
+				background-color: #4682b4;
+				color: white;
+				font-weight: bold;
+			}
+			QPushButton:hover {
+				background-color: #5a9fd4;
+			}
+		""")
+		cancel_button.setStyleSheet("""
+			QPushButton {
+				padding: 6px 16px;
+				border: 1px solid #ccc;
+				border-radius: 4px;
+				background-color: #f8f8f8;
+			}
+			QPushButton:hover {
+				background-color: #e8e8e8;
+			}
+		""")
 		button_layout.addWidget(ok_button)
 		button_layout.addWidget(cancel_button)
 		layout.addLayout(button_layout)
@@ -213,11 +246,12 @@ class PTCtrl:
 			any_active = any(analyte in self._mainview.activeElements for analyte in available_analytes)
 			if any_active:
 				self._mainview.periodicTableDict[element][3] = 1
-				self._view.periodicTable[element].setStyleSheet('background-color : yellow')
 			else:
 				self._mainview.periodicTableDict[element][3] = 0
-				col = self._mainview.periodicTableDict[element][2]
-				self._view.periodicTable[element].setStyleSheet('background-color : ' + col)
+
+			# Update button appearance and counter
+			self._view.updateElementButton(element)
+			self._view.updateSelectionCounter()
 
 
 	def _connectSignals(self):

@@ -122,8 +122,19 @@ class PyLCICPMSCtrl:
 		self._view.plotSpace.clear()
 		self._n = 0
 
+		# Clear integration results display
+		self._view.hideIntegrationResults()
+
 		# Clear the legend
 		self._view.updateLegend([], {})
+
+		# Reset comparison mode so user can select files from main list
+		self._view.compareMode = False
+		self._view.comparisonFiles = []
+		self._view.comparisonData = []
+		self._view.comparisonLabels = {}
+		if self._view.compareFilesBtn.isChecked():
+			self._view.compareFilesBtn.setChecked(False)
 
 		# Deselect current file so clicking it again will reload
 		self._view.listwidget.setCurrentItem(None)
@@ -135,6 +146,9 @@ class PyLCICPMSCtrl:
 			# User must use comparison list instead
 			if self._view.compareMode:
 				return
+
+			# Clear integration results when selecting a new file
+			self._view.hideIntegrationResults()
 
 			# Normal single file mode
 			filename = self._view.listwidget.currentItem().text()
@@ -324,14 +338,23 @@ class PyLCICPMSCtrl:
 		"""Clear all files from comparison list."""
 		self._view.compareListWidget.clear()
 		self._view.statusBar.showMessage('Cleared comparison list', 2000)
-		self._updateCompareButtons()
+
+		# Clear comparison data
+		self._view.comparisonFiles = []
+		self._view.comparisonData = []
+		self._view.comparisonLabels = {}
 
 		# Disable comparison mode
-		if self._view.compareMode:
+		self._view.compareMode = False
+		if self._view.compareFilesBtn.isChecked():
 			self._view.compareFilesBtn.setChecked(False)
 
 		# Hide comparison panel when list is cleared
 		self._view.showComparisonPanel(False)
+
+		# Clear the plot and allow new file selection
+		self._clearForm()
+		self._updateCompareButtons()
 
 	def _updateCompareButtons(self):
 		"""Update state of comparison list buttons."""
@@ -464,9 +487,112 @@ class PyLCICPMSCtrl:
 		if not has_calibration:
 			# Warn user that only peak areas (counts) will be calculated
 			self._view.statusBar.showMessage('No calibration loaded - calculating peak areas (counts) only', 5000)
+			print('No calibration loaded - only peak areas will be calculated')
+		else:
+			# Check which active elements have calibration curves
+			cal_elements = set(self._view.calCurves.keys())
+			active_elements = set(self._view.activeElements)
+			matched = cal_elements & active_elements
+			unmatched = active_elements - cal_elements
 
-		self._model.integrate(self._intRange, has_calibration=has_calibration)
+			if matched:
+				print(f'Calibration available for: {list(matched)}')
+			if unmatched:
+				print(f'No calibration for: {list(unmatched)} (will show counts only)')
+				self._view.statusBar.showMessage(f'Partial calibration - {len(unmatched)} element(s) will show counts only', 5000)
+
+		# Handle comparison mode: integrate all compared files
+		if self._view.compareMode and self._view.comparisonData:
+			all_results = {}
+			for i, (compare_data, filename) in enumerate(zip(self._view.comparisonData, self._view.comparisonFiles)):
+				# Get short name for display
+				if filename in self._view.comparisonLabels:
+					short_name = self._view.comparisonLabels[filename]
+				elif "LCICPMS_" in filename and ".csv" in filename:
+					start = filename.index("LCICPMS_") + len("LCICPMS_")
+					end = filename.index(".csv")
+					short_name = filename[start:end]
+				else:
+					short_name = filename.replace('.csv', '')
+
+				results = self._model.integrate(self._intRange, has_calibration=has_calibration,
+				                                 data=compare_data, filename=filename)
+				all_results[short_name] = results
+
+			# Display results for all files
+			self._displayComparisonResults(all_results, has_calibration)
+		else:
+			# Single file mode
+			results = self._model.integrate(self._intRange, has_calibration=has_calibration)
+			self._displayIntegrationResults(results, has_calibration)
+
 		self._view.integrateButtons['Integrate'].setStyleSheet("background-color: light gray")
+
+	def _displayIntegrationResults(self, results, has_calibration):
+		"""Display integration results in the results panel."""
+		if not results:
+			return
+
+		lines = []
+		for element, data in results.items():
+			peak_area = data['peak_area']
+			# Format peak area in scientific notation
+			if peak_area >= 1e6:
+				pa_str = f"{peak_area:.2e}"
+			else:
+				pa_str = f"{peak_area:.0f}"
+
+			if data['conc_ppb'] is not None:
+				conc_ppb = data['conc_ppb']
+				conc_uM = data['conc_uM']
+				lines.append(f"<b>{element}</b>: {pa_str} counts → {conc_ppb:.2f} ppb ({conc_uM:.3f} µM)")
+			else:
+				lines.append(f"<b>{element}</b>: {pa_str} counts")
+
+		# Add integration range info
+		range_min, range_max = self._intRange[0], self._intRange[1]
+		header = f"<b>Integration</b> ({range_min:.2f} - {range_max:.2f} min)"
+		if not has_calibration:
+			header += " <i>[No calibration]</i>"
+
+		results_text = header + "<br>" + " | ".join(lines)
+		self._view.showIntegrationResults(results_text)
+
+	def _displayComparisonResults(self, all_results, has_calibration):
+		"""Display integration results for comparison mode (multiple files)."""
+		if not all_results:
+			return
+
+		lines = []
+		# Get the element (only 1 element in compare mode)
+		element = self._view.activeElements[0] if self._view.activeElements else None
+
+		if element:
+			for filename, results in all_results.items():
+				if element in results:
+					data = results[element]
+					peak_area = data['peak_area']
+					# Format peak area in scientific notation
+					if peak_area >= 1e6:
+						pa_str = f"{peak_area:.2e}"
+					else:
+						pa_str = f"{peak_area:.0f}"
+
+					if data['conc_ppb'] is not None:
+						conc_ppb = data['conc_ppb']
+						conc_uM = data['conc_uM']
+						lines.append(f"<b>{filename}</b>: {pa_str} → {conc_ppb:.2f} ppb ({conc_uM:.3f} µM)")
+					else:
+						lines.append(f"<b>{filename}</b>: {pa_str} counts")
+
+		# Add integration range info
+		range_min, range_max = self._intRange[0], self._intRange[1]
+		header = f"<b>Integration ({element})</b> ({range_min:.2f} - {range_max:.2f} min)"
+		if not has_calibration:
+			header += " <i>[No calibration]</i>"
+
+		results_text = header + "<br>" + " | ".join(lines)
+		self._view.showIntegrationResults(results_text)
 
 	def _makePlot(self):
 		'''makes plot & activates integration'''
@@ -495,19 +621,41 @@ class PyLCICPMSCtrl:
 		self._ptview.show()
 
 	def _loadCalFile(self):
-		''' loads cal file and saves to self._mainview.calCurves '''
+		''' loads cal file and saves to self._view.calCurves '''
 		self._view.integrateButtons['Load Cal.'].setStyleSheet("background-color: light gray")
+
+		# Search for calibration file
+		calfile = None
 		for root, dirs, files in os.walk(self._view.homeDir):
 			for ff in files:
-				if '.calib' in ff:
-					calfile = os.path.join(root,ff)
+				if ff.endswith('.calib'):
+					calfile = os.path.join(root, ff)
+					break
+			if calfile:
+				break
 
-		with open(calfile) as file:
-			self._view.calCurves = json.load(file)
+		if calfile is None:
+			self._view.statusBar.showMessage('No calibration file (.calib) found in directory', 5000)
+			self._view.calib_label.setText('No calibration')
+			print('ERROR: No .calib file found in directory')
+			return
 
-		# Update status bar and label
-		self._view.statusBar.showMessage(f'Loaded calibration file: {os.path.basename(calfile)}', 5000)
-		self._view.calib_label.setText('Calibration loaded')
+		try:
+			with open(calfile) as file:
+				self._view.calCurves = json.load(file)
+
+			# Debug output to verify calibration loaded
+			print(f'Loaded calibration from: {calfile}')
+			print(f'Calibration elements: {list(self._view.calCurves.keys())}')
+
+			# Update status bar and label
+			num_elements = len(self._view.calCurves)
+			self._view.statusBar.showMessage(f'Loaded calibration file: {os.path.basename(calfile)} ({num_elements} elements)', 5000)
+			self._view.calib_label.setText(f'Calibration loaded ({num_elements} elements)')
+		except Exception as e:
+			self._view.statusBar.showMessage(f'Error loading calibration: {str(e)}', 5000)
+			self._view.calib_label.setText('Calibration error')
+			print(f'ERROR loading calibration file: {e}')
 
 	def _selectInNormFile(self):
 		''' opens window to select normalization file for 115In correction; saves average 115In signal from norm file'''
@@ -525,6 +673,8 @@ class PyLCICPMSCtrl:
 		self._model.removeIntRange()
 		self._view.integrateButtons['Integrate'].setStyleSheet("background-color: light gray")
 		self._view.integrateButtons['Integrate'].setEnabled(False)
+		# Clear integration results display
+		self._view.hideIntegrationResults()
 
 	def _confirmReset(self):
 		"""Reset plot without confirmation dialog."""

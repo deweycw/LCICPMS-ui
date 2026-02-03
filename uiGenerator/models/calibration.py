@@ -84,6 +84,37 @@ class CalibrateFunctions:
 			self._data = None
 			self._calview.elements_in_stdfile = []
 
+	def suggestIntegrationRange(self):
+		"""Suggest a default integration range using first and second-to-last time points.
+
+		Returns: (start_time_min, end_time_min) or None if no data
+		"""
+		if self._data is None or not self._calview.elements_in_stdfile:
+			return None
+
+		try:
+			# Use the first element to get time data
+			element = self._calview.elements_in_stdfile[0]
+			time_seconds = self._data['Time ' + element].values
+			time_minutes = time_seconds / 60
+
+			n_points = len(time_minutes)
+			if n_points < 3:
+				# Not enough points, use first and last
+				return (time_minutes[0], time_minutes[-1])
+
+			# Use first point and second-to-last point
+			start_time = time_minutes[0]   # First point
+			end_time = time_minutes[-2]    # Second to last
+
+			print(f"  Default integration range: {start_time:.2f} - {end_time:.2f} min")
+
+			return (start_time, end_time)
+
+		except Exception as e:
+			print(f"  Error getting integration range: {e}")
+			return None
+
 	def plotActiveElements(self):
 		'''plots active elements for selected file'''
 		print("plotActiveElements called")

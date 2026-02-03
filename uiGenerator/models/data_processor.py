@@ -126,9 +126,23 @@ class LICPMSfunctions:
 		if self.maxline != None:
 			self._view.plotSpace.addItem(self.maxline)
 
-	def integrate(self, intRange, has_calibration=True):
-		'''integrates over specified x range'''
+	def integrate(self, intRange, has_calibration=True, data=None, filename=None):
+		'''integrates over specified x range
+
+		Args:
+			intRange: tuple of (start_time, end_time) in minutes
+			has_calibration: whether calibration curves are available
+			data: optional dataframe to integrate (for comparison mode)
+			filename: optional filename for the data (for comparison mode)
+
+		Returns:
+			dict with integration results: {element: {'peak_area': float, 'conc_ppb': float, 'conc_uM': float}}
+		'''
 		self.intRange = intRange
+
+		# Use provided data or default to loaded data
+		integrate_data = data if data is not None else self._data
+
 		time_holders = {'start_time': 0, 'stop_time' : 0}
 		elementList = ['55Mn','56Fe','59Co','60Ni','63Cu','66Zn','111Cd', '208Pb']
 		element_dict= {key: None for key in elementList}
@@ -138,21 +152,24 @@ class LICPMSfunctions:
 		elementConcs_ppb = {**tstamp,**time_holders,**corr_dict,**element_dict}  # ppb concentrations
 		peakAreas = {**tstamp,**time_holders,**corr_dict,**element_dict}
 
+		# Results to return for display
+		results = {}
+
 		if self._view.normAvIndium > 0:
 			# Find indium column (handles both '115In' and '115In | 115In' formats)
 			indium_col = None
-			for col in self._data.columns:
+			for col in integrate_data.columns:
 				if col.startswith('115In') and 'Time' not in col:
 					indium_col = col
 					break
 
 			if indium_col:
-				indium_col_ind = self._data.columns.get_loc(indium_col)
+				indium_col_ind = integrate_data.columns.get_loc(indium_col)
 				time_col = 'Time ' + indium_col
-				if len(self._data[time_col]) > 2000:
-					corr_factor = np.average(self._data.iloc[550:2500,indium_col_ind]) / self._view.normAvIndium
+				if len(integrate_data[time_col]) > 2000:
+					corr_factor = np.average(integrate_data.iloc[550:2500,indium_col_ind]) / self._view.normAvIndium
 				else:
-					corr_factor = np.average(self._data.iloc[:,indium_col_ind]) / self._view.normAvIndium
+					corr_factor = np.average(integrate_data.iloc[:,indium_col_ind]) / self._view.normAvIndium
 				print('\ncorrection factor: %.4f' % corr_factor)
 			else:
 				print('\nWarning: 115In not found in file, no correction applied')
@@ -164,9 +181,9 @@ class LICPMSfunctions:
 			# Skip indium (handles both '115In' and '115In | 115In' formats)
 			if not element.startswith('115In'):
 				# Get time and intensity arrays (time in seconds, convert to minutes for range)
-				time_seconds = self._data['Time ' + element].values
+				time_seconds = integrate_data['Time ' + element].values
 				time_minutes = time_seconds / 60
-				intensity = self._data[element].values / corr_factor  # Apply correction factor
+				intensity = integrate_data[element].values / corr_factor  # Apply correction factor
 
 				# Set up time range for integration (convert minutes to seconds for lcicpms)
 				range_min = self.intRange[0]  # minutes
@@ -217,8 +234,20 @@ class LICPMSfunctions:
 				peakAreas[element] = '%.1f' % summed_area
 
 				# Only calculate concentrations if calibration is loaded
-				if has_calibration and element in self._view.calCurves:
-					cal_curve = self._view.calCurves[element]
+				# Try exact match first, then try base isotope (handles "56Fe | 56Fe.16O" format)
+				cal_element = None
+				if has_calibration:
+					if element in self._view.calCurves:
+						cal_element = element
+					else:
+						# Try base isotope (before " | ")
+						base_isotope = element.split(' | ')[0].strip() if ' | ' in element else element
+						if base_isotope in self._view.calCurves:
+							cal_element = base_isotope
+							print(f'  Using calibration for {base_isotope} (matched from {element})')
+
+				if cal_element is not None:
+					cal_curve = self._view.calCurves[cal_element]
 					slope = cal_curve['m']
 					intercept = cal_curve['b']
 					conc_ppb = slope * summed_area + intercept
@@ -242,15 +271,32 @@ class LICPMSfunctions:
 					elementConcs[element] = '%.3f' % conc_uM
 					elementConcs_ppb[element] = '%.3f' % conc_ppb
 
+					# Store results for display
+					results[element] = {
+						'peak_area': summed_area,
+						'conc_ppb': conc_ppb,
+						'conc_uM': conc_uM
+					}
+
 					print(f'\n{element}:')
 					print(f'  Peak area: {summed_area:.2e} counts')
 					print(f'  Concentration: {conc_ppb:.3f} ppb | {conc_uM:.3f} uM')
 				else:
-					# No calibration - just report peak area in scientific notation
+					# No calibration match - just report peak area in scientific notation
+					# Store results for display (peak area only)
+					results[element] = {
+						'peak_area': summed_area,
+						'conc_ppb': None,
+						'conc_uM': None
+					}
+
 					print(f'\n{element}:')
 					print(f'  Peak area: {summed_area:.2e} counts')
 					if not has_calibration:
 						print(f'  (No calibration loaded - concentrations not calculated)')
+					else:
+						base_isotope = element.split(' | ')[0].strip() if ' | ' in element else element
+						print(f'  (No calibration found for {element} or {base_isotope} - concentrations not calculated)')
 
 		
 		if self._view.singleOutputFile == False:
@@ -372,7 +418,9 @@ class LICPMSfunctions:
 						fwriter.writerow(elementConcs_ppb_with_file)
 				with open(filename_areas, 'a', newline='') as csvfile:
 					fwriter = csv.DictWriter(csvfile, fieldnames=peakAreas_with_file.keys())
-					fwriter.writerow(peakAreas_with_file) 
+					fwriter.writerow(peakAreas_with_file)
+
+		return results
 
 	def plotLowRange(self, xmin, n):
 		'''plots integration range'''

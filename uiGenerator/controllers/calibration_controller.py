@@ -175,10 +175,37 @@ class CalCtrlFunctions:
 
 			# Enable integration mode (click on plot to select range)
 			self._enableIntegration()
+
+			# Auto-show default integration range
+			self._showDefaultRange()
 		except Exception as e:
 			print(f"ERROR in _importAndActivatePlotting: {e}")
 			import traceback
 			traceback.print_exc()
+
+	def _showDefaultRange(self):
+		'''Show the default integration range (10th to 10th-to-last point).'''
+		# Get suggested range from model
+		suggested_range = self._model.suggestIntegrationRange()
+
+		if suggested_range is None:
+			return
+
+		start_time, end_time = suggested_range
+
+		# Reset any existing range
+		self._intRange = [start_time, end_time]
+		self._minAssigned = True
+		self._n = 0
+
+		# Plot the range lines
+		self._model.plotLowRange(start_time, self._n)
+		self._model.plotHighRange(end_time, self._n)
+
+		# Enable integrate button if a standard is selected
+		if self._calview.standardsTable.currentRow() >= 0:
+			self._calview.integrateButtons['Integrate'].setEnabled(True)
+			self._calview.integrateButtons['Integrate'].setStyleSheet("background-color: #ff6b6b")
 
 	def _enableIntegration(self):
 		"""Enable clicking on plot to select integration range."""
@@ -227,6 +254,13 @@ class CalCtrlFunctions:
 		self._calview.standardsTable.removeRow(row)
 		print(f"Removed standard at row {row}")
 
+		# Reset integration range selector for next standard
+		self._intRange = []
+		self._minAssigned = False
+		self._n = 0  # Reset color index
+		self._calview.integrateButtons['Integrate'].setEnabled(False)
+		self._calview.integrateButtons['Integrate'].setStyleSheet("")
+
 		# Update button states
 		self._updateButtonStates()
 
@@ -245,12 +279,11 @@ class CalCtrlFunctions:
 		self._updateButtonStates()
 
 	def _clearForm(self):
-		'''Clears all calibration data and resets the form.'''
+		'''Clears calibration data and resets the form. Preserves element selection.'''
 		# Clear the standards table
 		self._calview.clearStandardsTable()
 
-		# Clear main view data
-		self._mainview.activeElements.clear()
+		# Clear calibration curves only (preserve activeElements for periodic table)
 		self._mainview.calCurves = {}
 
 		# Clear plot
@@ -267,7 +300,7 @@ class CalCtrlFunctions:
 		self._calview.integrateButtons['Integrate'].setStyleSheet("")
 		self._calview.removeStandardBtn.setEnabled(False)
 
-		print('Calibration data cleared')
+		print('Calibration data cleared (elements preserved)')
 
 	def _onClick(self, event):
 		'''Handles clicks on plot to select integration range.'''
@@ -323,8 +356,40 @@ class CalCtrlFunctions:
 		# Reset for next integration
 		self._intRange = []
 		self._minAssigned = False
+		self._n = 0  # Reset color index so next integration starts with first color
 		self._calview.integrateButtons['Integrate'].setEnabled(False)
 		self._calview.integrateButtons['Integrate'].setStyleSheet("")
+
+	def _resetIntegration(self):
+		'''Resets integration range selection without clearing the plot data.'''
+		self._intRange = []
+		self._n = 0
+		self._minAssigned = False
+		self._calview.integrateButtons['Integrate'].setEnabled(False)
+		self._calview.integrateButtons['Integrate'].setStyleSheet("")
+
+		# Clear plot and re-plot to remove integration range lines
+		self._calview.plotSpace.clear()
+		if self._calview.listwidget.currentItem() is not None:
+			self._model.plotActiveElements()
+
+		print('Integration range reset')
+
+	def _suggestRange(self):
+		'''Reset to default integration range (10th to 10th-to-last point).'''
+		# Check if data is loaded
+		if self._calview.listwidget.currentItem() is None:
+			print("Please select a file first")
+			return
+
+		# Clear plot and re-plot to remove old range lines
+		self._calview.plotSpace.clear()
+		self._model.plotActiveElements()
+
+		# Show the default range
+		self._showDefaultRange()
+
+		print(f'Reset to default integration range: {self._intRange[0]:.2f} - {self._intRange[1]:.2f} min')
 
 	def _clearPlot(self):
 		'''Clears plot area and integration markers.'''
@@ -340,26 +405,49 @@ class CalCtrlFunctions:
 			self._model.plotActiveElements()
 
 	def _calcCurve(self):
-		"""Calculate calibration curves from standards table data."""
+		"""Calculate calibration curves from ALL standards in table (no selection required)."""
+		from PyQt6.QtWidgets import QMessageBox
+
+		# Get ALL standards from table (not just selected ones)
 		standards_data = self._calview.getStandardsData()
 
-		# Validate data
+		if len(standards_data) == 0:
+			QMessageBox.warning(
+				self._calview,
+				'No Standards',
+				'No standards in the table. Add standards and integrate them first.',
+				QMessageBox.StandardButton.Ok
+			)
+			return
+
+		# Validate data - check each standard has required fields
 		valid_standards = []
+		missing_info = []
 		for std in standards_data:
 			if std['concentration'] is not None and std['peak_areas'] is not None:
 				valid_standards.append(std)
 			else:
+				missing = []
+				if std['concentration'] is None:
+					missing.append('concentration')
+				if std['peak_areas'] is None:
+					missing.append('peak area')
+				missing_info.append(f"{std['name']}: missing {', '.join(missing)}")
 				print(f"Skipping {std['name']}: missing concentration or peak area")
 
 		if len(valid_standards) < 2:
-			from PyQt6.QtWidgets import QMessageBox
+			msg = 'Need at least 2 standards with concentration and peak area to calculate calibration curve.'
+			if missing_info:
+				msg += '\n\nIncomplete standards:\n• ' + '\n• '.join(missing_info)
 			QMessageBox.warning(
 				self._calview,
 				'Insufficient Data',
-				'Need at least 2 standards with concentration and peak area to calculate calibration curve.',
+				msg,
 				QMessageBox.StandardButton.Ok
 			)
 			return
+
+		print(f"Calculating calibration curve from {len(valid_standards)} standards (all table data, no selection required)")
 
 		# Pass data to model for calculation
 		self._model.calcLinearRegression(valid_standards)
@@ -387,6 +475,8 @@ class CalCtrlFunctions:
 		self._calview.buttons['Reset'].clicked.connect(self._clearForm)
 		self._calview.buttons['Clear Plot'].clicked.connect(self._clearPlot)
 		self._calview.integrateButtons['Integrate'].clicked.connect(self._Integrate)
+		self._calview.integrateButtons['Suggest Range'].clicked.connect(self._suggestRange)
+		self._calview.integrateButtons['Reset Integration'].clicked.connect(self._resetIntegration)
 		self._calview.integrateButtons['Calculate Curve'].clicked.connect(self._calcCurve)
 		print("  - Action button signals connected")
 
