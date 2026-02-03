@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.6] - 2026-02-03
+
+### Fixed
+- Fixed cross-platform path handling for calibration file saving on Windows (backslash separator issue)
+
 ## [0.2.1] - 2025-12-17
 
 ### Security
@@ -54,7 +59,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Calibration curve generation
 - Export to CSV
 
-[Unreleased]: https://github.com/deweycw/LCICPMS-ui/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/deweycw/LCICPMS-ui/compare/v1.0.6...HEAD
+[1.0.6]: https://github.com/deweycw/LCICPMS-ui/compare/v0.2.1...v1.0.6
 [0.2.1]: https://github.com/deweycw/LCICPMS-ui/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/deweycw/LCICPMS-ui/releases/tag/v0.2.0
 [0.1.0]: https://github.com/deweycw/LCICPMS-ui/releases/tag/v0.1.0

@@ -14,7 +14,7 @@ with open(os.path.join(this_directory, 'requirements.txt'), encoding='utf-8') as
 
 setup(
     name='lcicpms-ui',
-    version='1.0.5',
+    version='1.0.6',
     author='Christian Dewey',
     author_email='',
     description='A PyQt6 application for analyzing LC-ICP-MS chromatography data',
