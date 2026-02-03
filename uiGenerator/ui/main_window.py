@@ -438,7 +438,7 @@ class PyLCICPMSUi(QMainWindow):
 		leftLayout.addWidget(fileListLabel)
 
 		self.listwidget = QListWidget()
-		self.listwidget.setMaximumHeight(180)  # Reduced height
+		self.listwidget.setMinimumHeight(100)  # Ensure minimum visibility
 		leftLayout.addWidget(self.listwidget)
 
 		listBoxLayout.addLayout(leftLayout, stretch=2)
@@ -481,7 +481,7 @@ class PyLCICPMSUi(QMainWindow):
 
 		# Comparison list
 		self.compareListWidget = QListWidget()
-		self.compareListWidget.setMaximumHeight(140)  # Reduced height
+		self.compareListWidget.setMinimumHeight(80)  # Ensure minimum visibility
 		self.compareListWidget.setStyleSheet("""
 			QListWidget {
 				background-color: #f0f8ff;
