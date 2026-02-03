@@ -288,7 +288,7 @@ class CalibrateFunctions:
 
 		# Save calibration file
 		if self._mainview.homeDir:
-			home_dir = self._mainview.homeDir.rstrip('/')
+			home_dir = self._mainview.homeDir.rstrip('/\\')
 			savefile = os.path.join(home_dir, 'calibration_curve.calib')
 			with open(savefile, 'w') as file:
 				file.write(json.dumps(saveDict))

@@ -52,8 +52,8 @@ class CalCtrlFunctions:
 		main_dir = self._mainview.homeDir
 		print(f"Main window homeDir: '{main_dir}'")
 		if main_dir:
-			# Remove trailing slash for consistent path handling
-			main_dir = main_dir.rstrip('/')
+			# Remove trailing slash for consistent path handling (both / and \ for cross-platform)
+			main_dir = main_dir.rstrip('/\\')
 			if os.path.isdir(main_dir):
 				self._calview.calibrationDir = main_dir
 				print(f"Auto-loaded directory: {self._calview.calibrationDir}")
@@ -73,7 +73,7 @@ class CalCtrlFunctions:
 		# Start in current calibration directory, or main window's directory, or home
 		start_dir = self._calview.calibrationDir
 		if not start_dir or not os.path.isdir(start_dir):
-			start_dir = self._mainview.homeDir.rstrip('/') if self._mainview.homeDir else ''
+			start_dir = self._mainview.homeDir.rstrip('/\\') if self._mainview.homeDir else ''
 		if not start_dir or not os.path.isdir(start_dir):
 			start_dir = os.path.expanduser('~')
 
