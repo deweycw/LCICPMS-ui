@@ -290,8 +290,8 @@ class PyLCICPMSUi(QMainWindow):
 				}
 			""")
 			elementLabel.setTextFormat(Qt.TextFormat.RichText)
-			# Don't wrap - use eliding instead for cleaner look
-			elementLabel.setWordWrap(False)
+			# Enable word wrap for long sample names in comparison mode
+			elementLabel.setWordWrap(True)
 			elementLabel.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
 			elementLabel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
 			# Set minimum width to prevent extreme shrinking
@@ -384,116 +384,130 @@ class PyLCICPMSUi(QMainWindow):
 
 
 	def _createIntegrateCheckBoxes(self):
-		# Add some checkboxes to the layout
+		# Add checkboxes in a compact horizontal layout
 		self.integrateLayout = QHBoxLayout()
-		checkboxLayout =QVBoxLayout()
-		self.intbox = QCheckBox('Select integration range?')
-		self.intbox.setToolTip('Click plot to set integration start and end points')
-		self.oneFileBox = QCheckBox('Single output file?')
-		self.oneFileBox.setToolTip('Save all integrations to a single output file')
-		self.baseSubtractBox = QCheckBox('Baseline subtraction?')
-		self.baseSubtractBox.setToolTip('Subtract baseline from peak area calculations')
-		checkboxLayout.addWidget(self.intbox)
-		checkboxLayout.addWidget(self.oneFileBox)
-		checkboxLayout.addWidget(self.baseSubtractBox)
-		self.integrateLayout.addLayout(checkboxLayout)
+		self.integrateLayout.setSpacing(15)
 
-	
+		# Checkboxes in horizontal row
+		self.intbox = QCheckBox('Integration')
+		self.intbox.setToolTip('Click plot to set integration start and end points')
+		self.oneFileBox = QCheckBox('Single file')
+		self.oneFileBox.setToolTip('Save all integrations to a single output file')
+		self.baseSubtractBox = QCheckBox('Baseline sub.')
+		self.baseSubtractBox.setToolTip('Subtract baseline from peak area calculations')
+
+		self.integrateLayout.addWidget(self.intbox)
+		self.integrateLayout.addWidget(self.oneFileBox)
+		self.integrateLayout.addWidget(self.baseSubtractBox)
+		self.integrateLayout.addStretch()
+
 	def _createIntegrateLayout(self):
-		"""Create the integrate buttons."""
+		"""Create the integrate buttons in a single row."""
 		self.integrateButtons = {}
-		self.intButtonLayout = QGridLayout()
-		# Button text | position on the QGridLayout | tooltip
-		intbuttons = {
-			'Integrate': (0, 0, 'Integrate peaks in selected range (Ctrl+I)'),
-			'Load Cal.': (0, 2, 'Load calibration file'),
-			'Calibrate': (0, 3, 'Open calibration window'),
-			'115In Correction': (0, 1, 'Apply indium normalization correction'),
-			'Reset Integration': (1, 0, 'Clear integration ranges and results')
-		}
-		# Create the buttons and add them to the grid layout
-		for btnText, (row, col, tooltip) in intbuttons.items():
+		self.intButtonLayout = QHBoxLayout()
+		self.intButtonLayout.setSpacing(8)
+
+		# Button text | tooltip
+		intbuttons = [
+			('Integrate', 'Integrate peaks in selected range (Ctrl+I)'),
+			('Reset Integration', 'Clear integration ranges and results'),
+			('115In Correction', 'Apply indium normalization correction'),
+			('Load Cal.', 'Load calibration file'),
+			('Calibrate', 'Open calibration window'),
+		]
+
+		# Create the buttons in a single row
+		for btnText, tooltip in intbuttons:
 			self.integrateButtons[btnText] = QPushButton(btnText)
 			self.integrateButtons[btnText].setToolTip(tooltip)
-			if 'Reset' not in btnText:
-				self.integrateButtons[btnText].setFixedSize(122, 40)
-			else:
-				self.integrateButtons[btnText].setFixedSize(130, 40)
-			self.intButtonLayout.addWidget(self.integrateButtons[btnText], row, col)
+			self.integrateButtons[btnText].setFixedHeight(32)
+			self.intButtonLayout.addWidget(self.integrateButtons[btnText])
 
-			
-			
 		self.integrateLayout.addLayout(self.intButtonLayout)
 		# Add buttonsLayout to the general layout
 		self.generalLayout.addLayout(self.integrateLayout)
 
 	def _createListbox(self):
-		"""Create file list and comparison list side by side."""
+		"""Create file list with collapsible comparison panel."""
 		listBoxLayout = QHBoxLayout()
 
-		# Left side: Main file list
+		# Left side: Main file list (takes more space now)
 		leftLayout = QVBoxLayout()
 		fileListLabel = QLabel("Data Files")
 		fileListLabel.setStyleSheet("font-weight: bold;")
 		leftLayout.addWidget(fileListLabel)
 
 		self.listwidget = QListWidget()
-		self.listwidget.setMaximumHeight(250)
+		self.listwidget.setMaximumHeight(180)  # Reduced height
 		leftLayout.addWidget(self.listwidget)
 
-		listBoxLayout.addLayout(leftLayout)
+		listBoxLayout.addLayout(leftLayout, stretch=2)
 
-		# Middle: Transfer buttons
-		buttonLayout = QVBoxLayout()
-		buttonLayout.addStretch()
+		# Right side: Collapsible comparison panel (hidden by default)
+		self.comparisonPanel = QWidget()
+		comparisonLayout = QVBoxLayout(self.comparisonPanel)
+		comparisonLayout.setContentsMargins(5, 0, 0, 0)
 
-		self.addToCompareBtn = QPushButton("Add →")
-		self.addToCompareBtn.setToolTip("Add selected file to comparison list")
-		self.addToCompareBtn.setMaximumWidth(80)
-		self.addToCompareBtn.setEnabled(False)
-		buttonLayout.addWidget(self.addToCompareBtn)
-
-		self.removeFromCompareBtn = QPushButton("← Remove")
-		self.removeFromCompareBtn.setToolTip("Remove selected file from comparison list")
-		self.removeFromCompareBtn.setMaximumWidth(80)
-		self.removeFromCompareBtn.setEnabled(False)
-		buttonLayout.addWidget(self.removeFromCompareBtn)
-
-		self.clearCompareBtn = QPushButton("Clear All")
-		self.clearCompareBtn.setToolTip("Clear all files from comparison list")
-		self.clearCompareBtn.setMaximumWidth(80)
-		self.clearCompareBtn.setEnabled(False)
-		buttonLayout.addWidget(self.clearCompareBtn)
-
-		buttonLayout.addStretch()
-		listBoxLayout.addLayout(buttonLayout)
-
-		# Right side: Comparison list
-		rightLayout = QVBoxLayout()
-		compareListLabel = QLabel("Comparison Files (up to 12)")
+		# Header with collapse button
+		headerLayout = QHBoxLayout()
+		compareListLabel = QLabel("Comparison (up to 12)")
 		compareListLabel.setStyleSheet("font-weight: bold;")
-		rightLayout.addWidget(compareListLabel)
+		headerLayout.addWidget(compareListLabel)
+		headerLayout.addStretch()
+		comparisonLayout.addLayout(headerLayout)
 
+		# Transfer buttons (horizontal, more compact)
+		transferLayout = QHBoxLayout()
+		self.addToCompareBtn = QPushButton("+ Add")
+		self.addToCompareBtn.setToolTip("Add selected file to comparison list")
+		self.addToCompareBtn.setMaximumWidth(60)
+		self.addToCompareBtn.setEnabled(False)
+		transferLayout.addWidget(self.addToCompareBtn)
+
+		self.removeFromCompareBtn = QPushButton("- Remove")
+		self.removeFromCompareBtn.setToolTip("Remove selected file from comparison list")
+		self.removeFromCompareBtn.setMaximumWidth(70)
+		self.removeFromCompareBtn.setEnabled(False)
+		transferLayout.addWidget(self.removeFromCompareBtn)
+
+		self.clearCompareBtn = QPushButton("Clear")
+		self.clearCompareBtn.setToolTip("Clear all files from comparison list")
+		self.clearCompareBtn.setMaximumWidth(50)
+		self.clearCompareBtn.setEnabled(False)
+		transferLayout.addWidget(self.clearCompareBtn)
+
+		transferLayout.addStretch()
+		comparisonLayout.addLayout(transferLayout)
+
+		# Comparison list
 		self.compareListWidget = QListWidget()
-		self.compareListWidget.setMaximumHeight(250)
+		self.compareListWidget.setMaximumHeight(140)  # Reduced height
 		self.compareListWidget.setStyleSheet("""
 			QListWidget {
 				background-color: #f0f8ff;
 				border: 2px solid #4682b4;
 			}
 		""")
-		rightLayout.addWidget(self.compareListWidget)
+		comparisonLayout.addWidget(self.compareListWidget)
 
-		listBoxLayout.addLayout(rightLayout)
+		listBoxLayout.addWidget(self.comparisonPanel, stretch=1)
+
+		# Hide comparison panel by default
+		self.comparisonPanel.setVisible(False)
 
 		self.generalLayout.addLayout(listBoxLayout)
+
+	def showComparisonPanel(self, show=True):
+		"""Show or hide the comparison panel."""
+		self.comparisonPanel.setVisible(show)
 
 	def _showActiveCalibFile(self):
 		self.calib_label = QLabel()
 		self.calib_label.setAlignment(Qt.AlignmentFlag.AlignRight)
 		label_text = 'No calibration'
 		self.calib_label.setText(label_text)
-		self.intButtonLayout.addWidget(self.calib_label,1,3)
+		self.calib_label.setStyleSheet("color: #666; font-style: italic;")
+		self.intButtonLayout.addWidget(self.calib_label)
 
 	def _createButtons(self):
 		"""Create the buttons."""

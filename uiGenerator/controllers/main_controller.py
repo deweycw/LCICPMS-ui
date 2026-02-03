@@ -41,6 +41,7 @@ class PyLCICPMSCtrl:
 		self._xMax = 0
 		self.button_is_checked = False
 		self._update_thread = None  # Store update checker thread
+		self._calibrationPending = False  # Flag for calibration element selection
 
 		# Connect signals and slots
 		self._connectSignals()
@@ -121,6 +122,12 @@ class PyLCICPMSCtrl:
 		self._view.plotSpace.clear()
 		self._n = 0
 
+		# Clear the legend
+		self._view.updateLegend([], {})
+
+		# Deselect current file so clicking it again will reload
+		self._view.listwidget.setCurrentItem(None)
+
 	def _importAndActivatePlotting(self):
 		'''activates plotting function after data imported'''
 		if self._view.listwidget.currentItem() is not None:
@@ -148,6 +155,9 @@ class PyLCICPMSCtrl:
 			self._view.buttons['Reset'].setEnabled(True)
 			self._view.buttons['Export Plot'].setEnabled(True)
 			self._view.listwidget.setFocus()
+
+			# Update compare button state (now that elements are loaded)
+			self._updateCompareButtons()
 
 	def _mouseover(self, pos):
 		''' selects range for integration'''
@@ -209,21 +219,16 @@ class PyLCICPMSCtrl:
 					QMessageBox.StandardButton.Ok
 				)
 				if reply == QMessageBox.StandardButton.Ok:
-					# Open periodic table for user to select one element
 					self._showPeriodicTable()
 				self._view.compareFilesBtn.setChecked(False)
 				return
 
-			# Check if comparison list has enough files
+			# Check if comparison list has enough files - show panel silently
 			if self._view.compareListWidget.count() < 2:
-				QMessageBox.information(
-					self._view,
-					'Add Files to Compare',
-					'Please add at least 2 files to the comparison list using the "Add →" button.\n\n'
-					'You can add up to 12 files to compare.',
-					QMessageBox.StandardButton.Ok
-				)
-				self._view.compareFilesBtn.setChecked(False)
+				# Show comparison panel so user can add files
+				self._view.showComparisonPanel(True)
+				self._view.statusBar.showMessage('Add 2+ files to comparison list using "+ Add" button', 3000)
+				# Keep button checked - it will activate when files are added
 				return
 
 			# Enable comparison mode
@@ -246,19 +251,12 @@ class PyLCICPMSCtrl:
 
 	def _addToComparisonList(self):
 		"""Add selected file from main list to comparison list."""
-		from PyQt6.QtWidgets import QMessageBox
-
 		if self._view.listwidget.currentItem() is None:
 			return
 
 		# Check if already at max
 		if self._view.compareListWidget.count() >= 12:
-			QMessageBox.warning(
-				self._view,
-				'Maximum Reached',
-				'Comparison mode supports a maximum of 12 files.',
-				QMessageBox.StandardButton.Ok
-			)
+			self._view.statusBar.showMessage('Maximum of 12 files reached', 2000)
 			return
 
 		filename = self._view.listwidget.currentItem().text()
@@ -268,6 +266,10 @@ class PyLCICPMSCtrl:
 			if self._view.compareListWidget.item(i).text() == filename:
 				self._view.statusBar.showMessage(f'{filename} is already in comparison list', 2000)
 				return
+
+		# Show comparison panel when first file is added
+		if self._view.compareListWidget.count() == 0:
+			self._view.showComparisonPanel(True)
 
 		# Add to comparison list
 		self._view.compareListWidget.addItem(filename)
@@ -279,10 +281,18 @@ class PyLCICPMSCtrl:
 		# If comparison mode is already active, reload and replot
 		if self._view.compareMode:
 			self._loadComparisonFiles()
+		# If Compare button is checked and we now have 2+ files, activate comparison
+		elif (self._view.compareFilesBtn.isChecked() and
+		      self._view.compareListWidget.count() >= 2 and
+		      len(self._view.activeElements) == 1):
+			self._view.compareMode = True
+			self._loadComparisonFiles()
 		# Otherwise, auto-enable comparison mode if we have 2+ files and 1 element
 		elif (self._view.compareListWidget.count() >= 2 and
 		      len(self._view.activeElements) == 1):
 			self._view.compareFilesBtn.setChecked(True)
+			self._view.compareMode = True
+			self._loadComparisonFiles()
 
 	def _removeFromComparisonList(self):
 		"""Remove selected file from comparison list."""
@@ -306,6 +316,10 @@ class PyLCICPMSCtrl:
 				# Less than 2 files, disable comparison mode
 				self._view.compareFilesBtn.setChecked(False)
 
+		# Hide comparison panel when list is empty
+		if self._view.compareListWidget.count() == 0:
+			self._view.showComparisonPanel(False)
+
 	def _clearComparisonList(self):
 		"""Clear all files from comparison list."""
 		self._view.compareListWidget.clear()
@@ -315,6 +329,9 @@ class PyLCICPMSCtrl:
 		# Disable comparison mode
 		if self._view.compareMode:
 			self._view.compareFilesBtn.setChecked(False)
+
+		# Hide comparison panel when list is cleared
+		self._view.showComparisonPanel(False)
 
 	def _updateCompareButtons(self):
 		"""Update state of comparison list buttons."""
@@ -331,10 +348,10 @@ class PyLCICPMSCtrl:
 		has_items = self._view.compareListWidget.count() > 0
 		self._view.clearCompareBtn.setEnabled(has_items)
 
-		# Enable Compare Files button if 2+ files in comparison list and 1 element selected
-		has_enough_files = self._view.compareListWidget.count() >= 2
-		has_one_element = len(self._view.activeElements) == 1
-		self._view.compareFilesBtn.setEnabled(has_enough_files and has_one_element)
+		# Enable Compare Files button if there's at least 1 element selected
+		# (clicking it will show the panel and guide user to add files if needed)
+		has_elements = len(self._view.activeElements) >= 1
+		self._view.compareFilesBtn.setEnabled(has_elements)
 
 	def _editComparisonLabel(self, item):
 		"""Edit the legend label for a comparison file."""
@@ -442,22 +459,29 @@ class PyLCICPMSCtrl:
 			
 	def _Integrate(self):
 		''' call integration function'''
-		if len(self._view.calCurves) > 0:
-			self._model.integrate(self._intRange)
-			#self._intRange = []
-			self._view.integrateButtons['Integrate'].setStyleSheet("background-color: light gray")
-		else:
-			self._view.integrateButtons['Load Cal.'].setStyleSheet("background-color: yellow")
+		has_calibration = len(self._view.calCurves) > 0
+
+		if not has_calibration:
+			# Warn user that only peak areas (counts) will be calculated
+			self._view.statusBar.showMessage('No calibration loaded - calculating peak areas (counts) only', 5000)
+
+		self._model.integrate(self._intRange, has_calibration=has_calibration)
+		self._view.integrateButtons['Integrate'].setStyleSheet("background-color: light gray")
 
 	def _makePlot(self):
 		'''makes plot & activates integration'''
 		self._model.plotActiveElements()
 	
 	def _showCalWindow(self):
-		''' opens calibration window '''
-		#self.dialog = Calibration(view = self._view)
+		''' opens calibration window after element selection '''
+		# Set flag to indicate we're selecting elements for calibration
+		self._calibrationPending = True
+		self._view.statusBar.showMessage('Select elements to calibrate from the periodic table', 3000)
+		# Open periodic table for element selection
+		self._showPeriodicTable()
 
-
+	def _openCalibrationWindow(self):
+		'''Actually opens the calibration window after elements are selected'''
 		self.calWindow = Calibration(view = self._view)
 		calmodel = CalibrateFunctions(calview= self.calWindow, mainview = self._view)
 		CalCtrlFunctions(model=calmodel, mainview = self._view,view= self.calWindow)
@@ -503,27 +527,9 @@ class PyLCICPMSCtrl:
 		self._view.integrateButtons['Integrate'].setEnabled(False)
 
 	def _confirmReset(self):
-		"""Show confirmation dialog before resetting plot."""
-		from PyQt6.QtWidgets import QMessageBox
-
-		# Check if there's anything to reset
-		if not self._view.activeElements and not self._intRange:
-			# Nothing to reset, just clear
-			self._clearForm()
-			return
-
-		# Show confirmation dialog
-		reply = QMessageBox.question(
-			self._view,
-			'Confirm Reset',
-			'Are you sure you want to reset the plot?\n\nThis will clear:\n- Current plot view\n- Integration ranges\n- Selected elements',
-			QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-			QMessageBox.StandardButton.No
-		)
-
-		if reply == QMessageBox.StandardButton.Yes:
-			self._clearForm()
-			self._view.statusBar.showMessage('Plot reset', 2000)
+		"""Reset plot without confirmation dialog."""
+		self._clearForm()
+		self._view.statusBar.showMessage('Plot reset', 2000)
 
 	def _check_for_updates(self):
 		"""Check for updates on startup"""

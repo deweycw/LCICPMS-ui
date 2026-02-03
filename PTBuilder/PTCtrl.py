@@ -41,24 +41,18 @@ class PTCtrl:
 		self._model.plotActiveElements()
 		self._view.close()
 
+		# Check if calibration is pending and open calibration window
+		if hasattr(self._mainctrl, '_calibrationPending') and self._mainctrl._calibrationPending:
+			self._mainctrl._calibrationPending = False
+			if self._mainview.activeElements:
+				self._mainctrl._openCalibrationWindow()
+			else:
+				# No elements selected, inform user
+				self._mainview.statusBar.showMessage('No elements selected for calibration', 3000)
+
 	def _clearPeriodicTable(self):
-		"""Clear all selected elements with confirmation dialog."""
-		from PyQt6.QtWidgets import QMessageBox
-
-		# Show confirmation dialog if elements are selected
-		if self._mainview.activeElements:
-			reply = QMessageBox.question(
-				self._view,
-				'Confirm Clear All',
-				f'Are you sure you want to deselect all {len(self._mainview.activeElements)} element(s)?',
-				QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-				QMessageBox.StandardButton.No
-			)
-
-			if reply == QMessageBox.StandardButton.No:
-				return
-
-		# Clear the elements
+		"""Clear all selected elements."""
+		# Clear the elements without confirmation
 		self._mainview.activeElements = []
 		for element, btn in self._view.periodicTable.items():
 			col = self._mainview.periodicTableDict[element][2]

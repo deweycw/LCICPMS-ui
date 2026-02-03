@@ -35,7 +35,7 @@ class LICPMSfunctions:
 	def __init__(self, view):
 		"""Controller initializer."""
 		self._view = view
-		self.intColors = sns.color_palette(n_colors = 6, as_cmap = True)
+		self.intColors = sns.color_palette(n_colors=6)  # Returns list of RGB tuples
 		self.minline = None
 		self.maxline = None
 		self.region = None
@@ -126,7 +126,7 @@ class LICPMSfunctions:
 		if self.maxline != None:
 			self._view.plotSpace.addItem(self.maxline)
 
-	def integrate(self, intRange):
+	def integrate(self, intRange, has_calibration=True):
 		'''integrates over specified x range'''
 		self.intRange = intRange
 		time_holders = {'start_time': 0, 'stop_time' : 0}
@@ -134,10 +134,10 @@ class LICPMSfunctions:
 		element_dict= {key: None for key in elementList}
 		corr_dict = {'correction': None}
 		tstamp = {'timestamp': None}
-		elementConcs = {**tstamp,**time_holders,**corr_dict,**element_dict}
+		elementConcs = {**tstamp,**time_holders,**corr_dict,**element_dict}  # uM concentrations
+		elementConcs_ppb = {**tstamp,**time_holders,**corr_dict,**element_dict}  # ppb concentrations
 		peakAreas = {**tstamp,**time_holders,**corr_dict,**element_dict}
 
-		print(self._view.normAvIndium)
 		if self._view.normAvIndium > 0:
 			# Find indium column (handles both '115In' and '115In | 115In' formats)
 			indium_col = None
@@ -176,9 +176,12 @@ class LICPMSfunctions:
 				# Store metadata
 				elementConcs['start_time'] = '%.2f' % range_min
 				elementConcs['stop_time'] = '%.2f' % range_max
+				elementConcs_ppb['start_time'] = '%.2f' % range_min
+				elementConcs_ppb['stop_time'] = '%.2f' % range_max
 				peakAreas['start_time'] = '%.2f' % range_min
 				peakAreas['stop_time'] = '%.2f' % range_max
 				elementConcs['correction'] = '%.3f' % corr_factor
+				elementConcs_ppb['correction'] = '%.3f' % corr_factor
 				peakAreas['correction'] = '%.3f' % corr_factor
 
 				dateTimeObj = datetime.now()
@@ -211,88 +214,181 @@ class LICPMSfunctions:
 					summed_area = max(summed_area, 0)
 					
 
-				cal_curve = self._view.calCurves[element]	
-				slope = cal_curve['m']
-				intercept = cal_curve['b']
-				conc_ppb = slope * summed_area + intercept
-				conc_uM = conc_ppb / self._view.masses[element]
-				
 				peakAreas[element] = '%.1f' % summed_area
-				elementConcs[element] = '%.3f' % conc_uM
-				print('\n' + element + ' uM: %.3f' % conc_uM)
-				print(element  + ' peak area: %.1f' % summed_area)
+
+				# Only calculate concentrations if calibration is loaded
+				if has_calibration and element in self._view.calCurves:
+					cal_curve = self._view.calCurves[element]
+					slope = cal_curve['m']
+					intercept = cal_curve['b']
+					conc_ppb = slope * summed_area + intercept
+
+					# Extract base isotope from element name (handle "238U | 238U.16O2" format)
+					base_isotope = element.split(' | ')[0].strip() if ' | ' in element else element
+					# Look up mass - try exact match first, then base isotope
+					if element in self._view.masses:
+						mass = self._view.masses[element]
+					elif base_isotope in self._view.masses:
+						mass = self._view.masses[base_isotope]
+					else:
+						# Try to extract mass number from isotope name (e.g., "238U" -> 238)
+						import re
+						match = re.match(r'(\d+)', base_isotope)
+						mass = int(match.group(1)) if match else 1
+						print(f"Warning: Mass not found for {element}, using {mass}")
+
+					conc_uM = conc_ppb / mass
+
+					elementConcs[element] = '%.3f' % conc_uM
+					elementConcs_ppb[element] = '%.3f' % conc_ppb
+
+					print(f'\n{element}:')
+					print(f'  Peak area: {summed_area:.2e} counts')
+					print(f'  Concentration: {conc_ppb:.3f} ppb | {conc_uM:.3f} uM')
+				else:
+					# No calibration - just report peak area in scientific notation
+					print(f'\n{element}:')
+					print(f'  Peak area: {summed_area:.2e} counts')
+					if not has_calibration:
+						print(f'  (No calibration loaded - concentrations not calculated)')
 
 		
 		if self._view.singleOutputFile == False:
-			filename =  self._view.homeDir + 'peaks_uM_' + self.fdir.split('/')[-1].split(',')[0]
-
-			if os.path.exists(filename):
-				with open(filename, 'a', newline = '') as csvfile:
-					fwriter = csv.DictWriter(csvfile, fieldnames=elementConcs.keys())
-					fwriter.writerow(elementConcs) 		
+			# Always save peak areas (counts)
+			filename_areas = self._view.homeDir + 'peaks_counts_' + self.fdir.split('/')[-1].split(',')[0]
+			if os.path.exists(filename_areas):
+				with open(filename_areas, 'a', newline='') as csvfile:
+					fwriter = csv.DictWriter(csvfile, fieldnames=peakAreas.keys())
+					fwriter.writerow(peakAreas)
 			else:
-				csv_cols = ['start_time', 'stop_time','correction'] + elementList
-				with open(filename, 'w', newline = '') as csvfile:
-					fwriter = csv.writer(csvfile, delimiter = ',', quotechar = '|')
+				csv_cols = ['start_time', 'stop_time', 'correction'] + elementList
+				with open(filename_areas, 'w', newline='') as csvfile:
+					fwriter = csv.writer(csvfile, delimiter=',', quotechar='|')
 					if self._view.normAvIndium > 0:
-						fwriter.writerow(['115In correction applied: %.3f' % corr_factor,''])
-					fwriter.writerow(['concentrations in uM',''])
-					fwriter.writerow(['time in minutes',''])
+						fwriter.writerow(['115In correction applied: %.3f' % corr_factor, ''])
+					fwriter.writerow(['peak areas (counts)', ''])
+					fwriter.writerow(['time in minutes', ''])
 					fwriter.writerow(csv_cols)
-				with open(filename, 'a', newline = '') as csvfile:
-					fwriter = csv.DictWriter(csvfile, fieldnames=elementConcs.keys())
-					fwriter.writerow(elementConcs) 	
+				with open(filename_areas, 'a', newline='') as csvfile:
+					fwriter = csv.DictWriter(csvfile, fieldnames=peakAreas.keys())
+					fwriter.writerow(peakAreas)
+
+			# Only save concentration files if calibration is loaded
+			if has_calibration:
+				# Save uM concentrations
+				filename_uM = self._view.homeDir + 'peaks_uM_' + self.fdir.split('/')[-1].split(',')[0]
+				if os.path.exists(filename_uM):
+					with open(filename_uM, 'a', newline='') as csvfile:
+						fwriter = csv.DictWriter(csvfile, fieldnames=elementConcs.keys())
+						fwriter.writerow(elementConcs)
+				else:
+					csv_cols = ['start_time', 'stop_time', 'correction'] + elementList
+					with open(filename_uM, 'w', newline='') as csvfile:
+						fwriter = csv.writer(csvfile, delimiter=',', quotechar='|')
+						if self._view.normAvIndium > 0:
+							fwriter.writerow(['115In correction applied: %.3f' % corr_factor, ''])
+						fwriter.writerow(['concentrations in uM', ''])
+						fwriter.writerow(['time in minutes', ''])
+						fwriter.writerow(csv_cols)
+					with open(filename_uM, 'a', newline='') as csvfile:
+						fwriter = csv.DictWriter(csvfile, fieldnames=elementConcs.keys())
+						fwriter.writerow(elementConcs)
+
+				# Save ppb concentrations
+				filename_ppb = self._view.homeDir + 'peaks_ppb_' + self.fdir.split('/')[-1].split(',')[0]
+				if os.path.exists(filename_ppb):
+					with open(filename_ppb, 'a', newline='') as csvfile:
+						fwriter = csv.DictWriter(csvfile, fieldnames=elementConcs_ppb.keys())
+						fwriter.writerow(elementConcs_ppb)
+				else:
+					csv_cols = ['start_time', 'stop_time', 'correction'] + elementList
+					with open(filename_ppb, 'w', newline='') as csvfile:
+						fwriter = csv.writer(csvfile, delimiter=',', quotechar='|')
+						if self._view.normAvIndium > 0:
+							fwriter.writerow(['115In correction applied: %.3f' % corr_factor, ''])
+						fwriter.writerow(['concentrations in ppb', ''])
+						fwriter.writerow(['time in minutes', ''])
+						fwriter.writerow(csv_cols)
+					with open(filename_ppb, 'a', newline='') as csvfile:
+						fwriter = csv.DictWriter(csvfile, fieldnames=elementConcs_ppb.keys())
+						fwriter.writerow(elementConcs_ppb)
 		else:
-			filename =  self._view.homeDir + 'concentrations_uM_all.csv' 
-
-			elementConcs = {**{'filename':self.fdir.split('/')[-1].split(',')[0]},**elementConcs}
-			if os.path.exists(filename):
-				with open(filename, 'a', newline = '') as csvfile:
-					fwriter = csv.DictWriter(csvfile, fieldnames=elementConcs.keys())
-					fwriter.writerow(elementConcs) 		
+			# Always save peak areas (single file mode)
+			filename_areas = self._view.homeDir + 'peakareas_counts_all.csv'
+			peakAreas_with_file = {**{'filename': self.fdir.split('/')[-1].split(',')[0]}, **peakAreas}
+			if os.path.exists(filename_areas):
+				with open(filename_areas, 'a', newline='') as csvfile:
+					fwriter = csv.DictWriter(csvfile, fieldnames=peakAreas_with_file.keys())
+					fwriter.writerow(peakAreas_with_file)
 			else:
-				csv_cols = ['filename','tstamp','start_time', 'stop_time','correction'] + elementList
-				with open(filename, 'w', newline = '') as csvfile:
-					fwriter = csv.writer(csvfile, delimiter = ',', quotechar = '|')
-				#	if self._view.normAvIndium > 0:
-			#		fwriter.writerow(['115In correction applied: %.3f' % corr_factor,''])
-					fwriter.writerow(['concentrations in uM',''])
-					fwriter.writerow(['time in minutes',''])
-					fwriter.writerow(csv_cols)
-				with open(filename, 'a', newline = '') as csvfile:
-					fwriter = csv.DictWriter(csvfile, fieldnames=elementConcs.keys())
-					fwriter.writerow(elementConcs) 
-
-			filename =  self._view.homeDir + 'peakareas_counts_all.csv' 
-
-			peakAreas = {**{'filename':self.fdir.split('/')[-1].split(',')[0]},**peakAreas}
-			if os.path.exists(filename):
-				with open(filename, 'a', newline = '') as csvfile:
-					fwriter = csv.DictWriter(csvfile, fieldnames=peakAreas.keys())
-					fwriter.writerow(peakAreas) 		
-			else:
-				csv_cols = ['filename','tstamp','start_time', 'stop_time', 'correction'] + elementList
-				with open(filename, 'w', newline = '') as csvfile:
-					fwriter = csv.writer(csvfile, delimiter = ',', quotechar = '|')
+				csv_cols = ['filename', 'tstamp', 'start_time', 'stop_time', 'correction'] + elementList
+				with open(filename_areas, 'w', newline='') as csvfile:
+					fwriter = csv.writer(csvfile, delimiter=',', quotechar='|')
 					if self._view.normAvIndium > 0:
-						fwriter.writerow(['115In correction applied: %.3f' % corr_factor,''])
-					fwriter.writerow(['time in minutes',''])
+						fwriter.writerow(['115In correction applied: %.3f' % corr_factor, ''])
+					fwriter.writerow(['peak areas (counts)', ''])
+					fwriter.writerow(['time in minutes', ''])
 					fwriter.writerow(csv_cols)
-				with open(filename, 'a', newline = '') as csvfile:
-					fwriter = csv.DictWriter(csvfile, fieldnames=peakAreas.keys())
-					fwriter.writerow(peakAreas) 
-			#print('Intercept: %.4f' % intercept)
-			#print('Slope: %.8f' % slope) 
+				with open(filename_areas, 'a', newline='') as csvfile:
+					fwriter = csv.DictWriter(csvfile, fieldnames=peakAreas_with_file.keys())
+					fwriter.writerow(peakAreas_with_file)
 
-	def plotLowRange(self,xmin,n):
+			# Only save concentration files if calibration is loaded
+			if has_calibration:
+				# Save uM concentrations (single file mode)
+				filename_uM = self._view.homeDir + 'concentrations_uM_all.csv'
+				elementConcs_with_file = {**{'filename': self.fdir.split('/')[-1].split(',')[0]}, **elementConcs}
+				if os.path.exists(filename_uM):
+					with open(filename_uM, 'a', newline='') as csvfile:
+						fwriter = csv.DictWriter(csvfile, fieldnames=elementConcs_with_file.keys())
+						fwriter.writerow(elementConcs_with_file)
+				else:
+					csv_cols = ['filename', 'tstamp', 'start_time', 'stop_time', 'correction'] + elementList
+					with open(filename_uM, 'w', newline='') as csvfile:
+						fwriter = csv.writer(csvfile, delimiter=',', quotechar='|')
+						fwriter.writerow(['concentrations in uM', ''])
+						fwriter.writerow(['time in minutes', ''])
+						fwriter.writerow(csv_cols)
+					with open(filename_uM, 'a', newline='') as csvfile:
+						fwriter = csv.DictWriter(csvfile, fieldnames=elementConcs_with_file.keys())
+						fwriter.writerow(elementConcs_with_file)
+
+				# Save ppb concentrations (single file mode)
+				filename_ppb = self._view.homeDir + 'concentrations_ppb_all.csv'
+				elementConcs_ppb_with_file = {**{'filename': self.fdir.split('/')[-1].split(',')[0]}, **elementConcs_ppb}
+				if os.path.exists(filename_ppb):
+					with open(filename_ppb, 'a', newline='') as csvfile:
+						fwriter = csv.DictWriter(csvfile, fieldnames=elementConcs_ppb_with_file.keys())
+						fwriter.writerow(elementConcs_ppb_with_file)
+				else:
+					csv_cols = ['filename', 'tstamp', 'start_time', 'stop_time', 'correction'] + elementList
+					with open(filename_ppb, 'w', newline='') as csvfile:
+						fwriter = csv.writer(csvfile, delimiter=',', quotechar='|')
+						fwriter.writerow(['concentrations in ppb', ''])
+						fwriter.writerow(['time in minutes', ''])
+						fwriter.writerow(csv_cols)
+					with open(filename_ppb, 'a', newline='') as csvfile:
+						fwriter = csv.DictWriter(csvfile, fieldnames=elementConcs_ppb_with_file.keys())
+						fwriter.writerow(elementConcs_ppb_with_file)
+				with open(filename_areas, 'a', newline='') as csvfile:
+					fwriter = csv.DictWriter(csvfile, fieldnames=peakAreas_with_file.keys())
+					fwriter.writerow(peakAreas_with_file) 
+
+	def plotLowRange(self, xmin, n):
 		'''plots integration range'''
-		col = self.intColors[0]
-		self.minline = pg.InfiniteLine(xmin, pen = col, angle = 90)
-		self._view.plotSpace.addItem(self.minline) #InfiniteLine(minInt,angle = 90)
-		
-	def plotHighRange(self,xmax,n):
-		col = self.intColors[0]
-		self.maxline = pg.InfiniteLine(xmax, pen=col,angle = 90)
+		col = self.intColors[n % len(self.intColors)]
+		# Convert to RGB 0-255 for pyqtgraph
+		r, g, b = int(col[0]*255), int(col[1]*255), int(col[2]*255)
+		pen = pg.mkPen(color=(r, g, b), width=2)
+		self.minline = pg.InfiniteLine(xmin, pen=pen, angle=90)
+		self._view.plotSpace.addItem(self.minline)
+
+	def plotHighRange(self, xmax, n):
+		col = self.intColors[n % len(self.intColors)]
+		# Convert to RGB 0-255 for pyqtgraph
+		r, g, b = int(col[0]*255), int(col[1]*255), int(col[2]*255)
+		pen = pg.mkPen(color=(r, g, b), width=2)
+		self.maxline = pg.InfiniteLine(xmax, pen=pen, angle=90)
 		self._view.plotSpace.addItem(self.maxline)
 
 		# Add shaded region between min and max lines
@@ -302,7 +398,7 @@ class LICPMSfunctions:
 			self.region = pg.LinearRegionItem(
 				values=(xmin, xmax),
 				orientation='vertical',
-				brush=pg.mkBrush(col[0]*255, col[1]*255, col[2]*255, 50),  # Semi-transparent
+				brush=pg.mkBrush(r, g, b, 50),  # Semi-transparent
 				pen=pg.mkPen(None),  # No border lines (we already have the InfiniteLines)
 				movable=False  # Make it non-movable
 			)

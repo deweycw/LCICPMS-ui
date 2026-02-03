@@ -70,9 +70,10 @@ class plotChroma:
 					# Fallback: just remove .csv extension
 					short_name = filename.replace('.csv', '')
 
-				# Truncate if still too long (only if not a custom label)
-				if filename not in self.compare_labels_dict and len(short_name) > 20:
-					short_name = short_name[:20] + "..."
+				# Don't truncate - let legend panel handle wrapping
+				# Use file index as suffix if name would be duplicate
+				if short_name in legend_colors:
+					short_name = f"{short_name} ({file_idx + 1})"
 
 				legend_elements.append(short_name)
 				legend_colors[short_name] = file_colors[file_idx]

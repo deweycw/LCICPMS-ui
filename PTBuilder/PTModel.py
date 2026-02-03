@@ -34,7 +34,7 @@ class PTModel:
 		self._mainview = mainview
 		self._maincontrol = maincontrol
 		self.ntime = True
-		self.intColors = sns.color_palette(n_colors = 6, as_cmap = True)
+		self.intColors = sns.color_palette(n_colors=6)
 
 	def plotActiveElements(self):
 		'''plots active elements for selected file'''
@@ -42,6 +42,8 @@ class PTModel:
 		# The button will be enabled/disabled in _updateCompareButtons based on file count and element count
 		self._maincontrol._updateCompareButtons()
 
-		self._maincontrol._makePlot()
+		# Only plot if data has been loaded
+		if hasattr(self._maincontrol._model, '_data') and self._maincontrol._model._data is not None:
+			self._maincontrol._makePlot()
 		
 
