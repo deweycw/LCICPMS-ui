@@ -160,9 +160,9 @@ class CalibrateFunctions:
 
 			# Use lcicpms Integrate.integrate() for peak area calculation
 			summed_area = Integrate.integrate(intensity, time_seconds, time_range=time_range_seconds)
-			print(element + ': ' + str(summed_area/60))
+			print(element + ': ' + str(summed_area))
 
-			pa_dict[element] = summed_area/60
+			pa_dict[element] = summed_area
 
 			self._calview.n_area = pa_dict
 
@@ -277,7 +277,9 @@ class CalibrateFunctions:
 			host.set_xlim(left=0)
 			host.set_ylim(bottom=0)
 
-			fname = os.path.join(self._calview.calibrationDir, f'{m}_calibration.png')
+			# Sanitize element name for filename (replace invalid Windows characters)
+			safe_name = m.replace(' | ', '_').replace('|', '_').replace('.', '_')
+			fname = os.path.join(self._calview.calibrationDir, f'{safe_name}_calibration.png')
 			plt.savefig(fname, dpi=300, bbox_inches='tight')
 			plt.show()
 
