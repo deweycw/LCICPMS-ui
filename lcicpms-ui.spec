@@ -40,7 +40,7 @@ datas += collect_data_files('pyqtgraph')
 block_cipher = None
 
 a = Analysis(
-    ['run.py'],
+    ['run_lcicpms.py'],
     pathex=[],
     binaries=[],
     datas=datas,

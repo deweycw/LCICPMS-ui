@@ -6,6 +6,7 @@ import pyqtgraph as pg
 from functools import partial
 import os
 import pandas as pd
+import numpy as np
 import json
 from ..ui.calibration_window import Calibration
 from ..controllers.calibration_controller import CalCtrlFunctions
@@ -659,14 +660,60 @@ class PyLCICPMSCtrl:
 
 	def _selectInNormFile(self):
 		''' opens window to select normalization file for 115In correction; saves average 115In signal from norm file'''
-		dialog = QFileDialog()
-		dialog.setWindowTitle("Select Normalization File")
-		dialog.setViewMode(QFileDialog.ViewMode.Detail)
-		filepath = dialog.getOpenFileName(self._view,"Openfile")[0]
-		normData = self._model.importData_generic(fdir = filepath )
-		self._view.normAvIndium = np.average(normData['115In'])
-		#print(self._view.normAvIndium)
+		filepath, _ = QFileDialog.getOpenFileName(
+			self._view, "Select Normalization File", self._view.homeDir, "CSV Files (*.csv);;All Files (*)"
+		)
+		if not filepath:
+			return
+		try:
+			normData = self._model.importData_generic(fdir=filepath)
+		except Exception as e:
+			self._view.statusBar.showMessage(f'Error reading normalization file: {e}', 5000)
+			print(f'ERROR reading normalization file: {e}')
+			return
+		indium_col = next(
+			(col for col in normData.columns if col.startswith('115In') and 'Time' not in col),
+			None,
+		)
+		if indium_col is None:
+			self._view.statusBar.showMessage('115In not found in normalization file', 5000)
+			print('ERROR: 115In column not found in normalization file')
+			print(f'  Columns available: {list(normData.columns)}')
+			return
+		indium_values = normData[indium_col].dropna()
+		n_points = len(indium_values)
+		avg_in = float(np.average(indium_values))
+		std_in = float(np.std(indium_values))
+		median_in = float(np.median(indium_values))
+
+		self._view.normAvIndium = avg_in
+		print(f'115In normalization loaded: avg = {avg_in:.2f} (column: {indium_col})')
+		self._view.statusBar.showMessage(
+			f'115In correction loaded (avg = {avg_in:.2f})', 4000
+		)
 		self._view.integrateButtons['115In Correction'].setEnabled(False)
+
+		msg = QMessageBox(self._view)
+		msg.setIcon(QMessageBox.Icon.Information)
+		msg.setWindowTitle("115In Normalization Loaded")
+		msg.setText("115In normalization reference has been set.")
+		msg.setInformativeText(
+			f"<b>File:</b> {os.path.basename(filepath)}<br>"
+			f"<b>Column used:</b> {indium_col}<br>"
+			f"<b>Data points:</b> {n_points}<br><br>"
+			f"<b>Mean 115In:</b> {avg_in:.2f} counts<br>"
+			f"<b>Median 115In:</b> {median_in:.2f} counts<br>"
+			f"<b>Std dev:</b> {std_in:.2f} counts "
+			f"({(std_in / avg_in * 100) if avg_in else 0:.1f}% RSD)<br><br>"
+			"<b>How the correction is applied:</b><br>"
+			"For each integrated sample, a correction factor is computed as "
+			"<i>avg(sample 115In) / avg(reference 115In)</i>. "
+			"All element intensities are divided by this factor before integration. "
+			"For sample files with &gt; 2000 points, only rows 550&ndash;2500 are "
+			"averaged to avoid transient regions; shorter files use all rows."
+		)
+		msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+		msg.exec()
 		
 	def _resetIntegrate(self):
 		self._intRange = []
