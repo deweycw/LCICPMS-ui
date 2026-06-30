@@ -31,9 +31,19 @@ A PyQt6-based desktop application for analyzing and visualizing LC-ICP-MS (Liqui
 
 ## Quick Start
 
-### Installation from Source (Recommended)
+### Download the Latest Release
 
-**For maximum security and transparency, we recommend running from source:**
+Pre-built executables are published on the [**Releases page**](https://github.com/deweycw/LCICPMS-ui/releases/latest). Pick the asset that matches your platform:
+
+| Platform | Asset | How to run |
+|----------|-------|------------|
+| **macOS** | `LCICPMS-ui-vX.Y.Z-macos.dmg` | Open the DMG and drag `LCICPMS-ui.app` to Applications |
+| **Windows** | `LCICPMS-ui-vX.Y.Z-windows.zip` | Unzip and double-click `LCICPMS-ui.exe` |
+| **Linux** | `LCICPMS-ui-vX.Y.Z-linux.tar.gz` | Extract with `tar -xzf` and run `./LCICPMS-ui/LCICPMS-ui` |
+
+> **First-launch warnings**: macOS Gatekeeper and Windows SmartScreen may block the app on first launch because the binaries are not code-signed. On macOS, right-click the app → *Open* → *Open*. On Windows, click *More info* → *Run anyway*. See the [Security Note](#security-note) below for details.
+
+### Installation from Source
 
 ```bash
 # 1. Clone the repository
@@ -49,12 +59,6 @@ pip install -r requirements.txt
 
 # 4. Run the application
 python run_lcicpms.py
-```
-
-**Alternative**: Install as package
-```bash
-pip install -e .
-lcicpms-ui
 ```
 
 ### Security Note
@@ -197,7 +201,7 @@ pip install --force-reinstall PyQt5
 
 ### For End Users
 
-Download pre-built executables from the [Releases page](https://github.com/deweycw/LCICPMS-ui/releases/latest).
+Download pre-built executables from the [Releases page](https://github.com/deweycw/LCICPMS-ui/releases/latest). See the [Download the Latest Release](#download-the-latest-release) section above for per-platform instructions.
 
 ### For Developers
 
