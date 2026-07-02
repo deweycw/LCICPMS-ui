@@ -30,8 +30,14 @@ class ICPMS_Data_Class:
 		labels = []
 		lines = []
 		for m in self.elements:
-			icpms_time = self.icpms_data['Time ' + m] / 60
-			icpms_signal = self.icpms_data[m] / 1000
+			icpms_time = np.asarray(self.icpms_data['Time ' + m], dtype=float) / 60
+			icpms_signal = np.asarray(self.icpms_data[m], dtype=float) / 1000
+			# Drop points where time == 0 to prevent phantom lines to the origin.
+			mask = np.isfinite(icpms_time) & (icpms_time > 0)
+			icpms_time = icpms_time[mask]
+			icpms_signal = icpms_signal[mask]
+			if len(icpms_time) == 0:
+				continue
 			formatted_label = format_analyte_latex(m)
 			p, = host.plot(icpms_time, icpms_signal, color = color_dict[m], linewidth  = 0.75, label=formatted_label)
 			if icpms_max < max(icpms_signal):
@@ -76,8 +82,14 @@ class ICPMS_Data_Class:
 		labels = []
 		lines = []
 		for m,ax in zip(self.elements, axes):
-			icpms_time = self.icpms_data['Time ' + m] / 60
-			icpms_signal = self.icpms_data[m] / 10000
+			icpms_time = np.asarray(self.icpms_data['Time ' + m], dtype=float) / 60
+			icpms_signal = np.asarray(self.icpms_data[m], dtype=float) / 10000
+			# Drop points where time == 0 to prevent phantom lines to the origin.
+			mask = np.isfinite(icpms_time) & (icpms_time > 0)
+			icpms_time = icpms_time[mask]
+			icpms_signal = icpms_signal[mask]
+			if len(icpms_time) == 0:
+				continue
 			formatted_label = format_analyte_latex(m)
 			print('icpmax: %.2f' % icpms_max )
 			p, = ax.plot(icpms_time, icpms_signal, color = color_dict[m], linewidth  = 0.75, label=formatted_label)

@@ -136,21 +136,40 @@ class LICPMSfunctions:
 			filename: optional filename for the data (for comparison mode)
 
 		Returns:
-			dict with integration results: {element: {'peak_area': float, 'conc_ppb': float, 'conc_uM': float}}
+			dict:
+				'results':     {element: {'peak_area', 'conc_ppb', 'conc_uM'}}
+				'peakAreas':   flat dict for CSV export (peak areas per element)
+				'elementConcs':      flat dict for CSV export (uM concentrations)
+				'elementConcs_ppb':  flat dict for CSV export (ppb concentrations)
+				'corr_factor': 115In correction factor applied
+				'filename':    basename of the file that was integrated
+				'timestamp':   human-readable timestamp
+				'has_calibration': whether calibration was available
+				'range': (start_min, stop_min)
+
+		This method no longer writes any CSV files. Persistence is done via
+		saveIntegration() when the user explicitly saves.
 		'''
 		self.intRange = intRange
 
 		# Use provided data or default to loaded data
 		integrate_data = data if data is not None else self._data
 
-		time_holders = {'start_time': 0, 'stop_time' : 0}
-		elementList = ['55Mn','56Fe','59Co','60Ni','63Cu','66Zn','111Cd', '208Pb']
-		element_dict= {key: None for key in elementList}
-		corr_dict = {'correction': None}
-		tstamp = {'timestamp': None}
-		elementConcs = {**tstamp,**time_holders,**corr_dict,**element_dict}  # uM concentrations
-		elementConcs_ppb = {**tstamp,**time_holders,**corr_dict,**element_dict}  # ppb concentrations
-		peakAreas = {**tstamp,**time_holders,**corr_dict,**element_dict}
+		# Seed the output dicts from the elements that will actually be
+		# integrated (activeElements minus 115In). No hardcoded element list —
+		# so 238U, TQ-mode analytes, etc. all end up in the CSV. No timestamp
+		# column either (per user request; the save filename carries the date).
+		integrated_elements = [
+			el for el in self._view.activeElements
+			if not el.startswith('115In')
+		]
+		element_dict = {key: None for key in integrated_elements}
+		meta = {'start_time': 0, 'stop_time': 0, 'correction': None}
+		elementConcs = {**meta, **element_dict}      # uM concentrations
+		elementConcs_ppb = {**meta, **element_dict}  # ppb concentrations
+		peakAreas = {**meta, **element_dict}
+		# Per-element baseline area subtracted (counts·s); None when disabled.
+		baselineAreas = {**meta, **element_dict}
 
 		# Results to return for display
 		results = {}
@@ -201,34 +220,37 @@ class LICPMSfunctions:
 				elementConcs_ppb['correction'] = '%.3f' % corr_factor
 				peakAreas['correction'] = '%.3f' % corr_factor
 
-				dateTimeObj = datetime.now()
-				timestampStr = dateTimeObj.strftime("%d-%b-%Y (%H:%M:%S)")
-				elementConcs['timestamp'] = timestampStr
-				peakAreas['timestamp'] = timestampStr
-
 				# Use lcicpms Integrate.integrate() for peak area calculation
 				summed_area = Integrate.integrate(intensity, time_seconds, time_range=time_range_seconds)
 
-				# Baseline subtraction (if enabled)
+				# Baseline subtraction (if enabled).
+				# summed_area comes out in counts·seconds because Integrate.integrate
+				# is called with `time_seconds`, so the trapezoidal baseline area we
+				# subtract must also be in counts·seconds — previously it was
+				# divided by 60 (counts·minutes), so it was 60× too small and had
+				# essentially no effect.
+				baseline_area = None
 				if self._view.baseSubtract == True:
-					# Find indices for baseline points
+					# Find the sample indices closest to the selected range endpoints
 					min_delta = min(abs(time_minutes - range_min))
 					max_delta = min(abs(time_minutes - range_max))
 					i_tmin = int(np.where(abs(time_minutes - range_min) == min_delta)[0][0])
 					i_tmax = int(np.where(abs(time_minutes - range_max) == max_delta)[0][0])
 
-					baseline_height_1 = intensity[i_tmin]
-					baseline_height_2 = intensity[i_tmax]
-					baseline_timeDelta = (time_seconds[i_tmax] - time_seconds[i_tmin]) / 60  # minutes
+					h1 = intensity[i_tmin]
+					h2 = intensity[i_tmax]
+					dt_seconds = time_seconds[i_tmax] - time_seconds[i_tmin]
 
-					min_base_height = min([baseline_height_1, baseline_height_2])
-					max_base_height = max([baseline_height_1, baseline_height_2])
-					baseline_area_1 = min_base_height * baseline_timeDelta
-					baseline_area_2 = (max_base_height - min_base_height) * baseline_timeDelta * 0.5
+					# Trapezoidal area under the straight line between (t_min, h1)
+					# and (t_max, h2), in counts·seconds — matches summed_area units.
+					baseline_area = 0.5 * (h1 + h2) * dt_seconds
 
-					baseline_area = baseline_area_1 + baseline_area_2
-					summed_area = summed_area - baseline_area
-					summed_area = max(summed_area, 0)
+					summed_area = max(summed_area - baseline_area, 0)
+				# Record the baseline (or None if not used) so it flows into
+				# both the popup and the saved CSV.
+				baselineAreas[element] = (
+					'%.1f' % baseline_area if baseline_area is not None else None
+				)
 					
 
 				peakAreas[element] = '%.1f' % summed_area
@@ -275,7 +297,8 @@ class LICPMSfunctions:
 					results[element] = {
 						'peak_area': summed_area,
 						'conc_ppb': conc_ppb,
-						'conc_uM': conc_uM
+						'conc_uM': conc_uM,
+						'baseline_area': baseline_area,
 					}
 
 					print(f'\n{element}:')
@@ -287,7 +310,8 @@ class LICPMSfunctions:
 					results[element] = {
 						'peak_area': summed_area,
 						'conc_ppb': None,
-						'conc_uM': None
+						'conc_uM': None,
+						'baseline_area': baseline_area,
 					}
 
 					print(f'\n{element}:')
@@ -298,129 +322,102 @@ class LICPMSfunctions:
 						base_isotope = element.split(' | ')[0].strip() if ' | ' in element else element
 						print(f'  (No calibration found for {element} or {base_isotope} - concentrations not calculated)')
 
-		
-		if self._view.singleOutputFile == False:
-			# Always save peak areas (counts)
-			filename_areas = self._view.homeDir + 'peaks_counts_' + self.fdir.split('/')[-1].split(',')[0]
-			if os.path.exists(filename_areas):
-				with open(filename_areas, 'a', newline='') as csvfile:
-					fwriter = csv.DictWriter(csvfile, fieldnames=peakAreas.keys())
-					fwriter.writerow(peakAreas)
-			else:
-				csv_cols = ['start_time', 'stop_time', 'correction'] + elementList
-				with open(filename_areas, 'w', newline='') as csvfile:
-					fwriter = csv.writer(csvfile, delimiter=',', quotechar='|')
-					if self._view.normAvIndium > 0:
-						fwriter.writerow(['115In correction applied: %.3f' % corr_factor, ''])
-					fwriter.writerow(['peak areas (counts)', ''])
-					fwriter.writerow(['time in minutes', ''])
-					fwriter.writerow(csv_cols)
-				with open(filename_areas, 'a', newline='') as csvfile:
-					fwriter = csv.DictWriter(csvfile, fieldnames=peakAreas.keys())
-					fwriter.writerow(peakAreas)
-
-			# Only save concentration files if calibration is loaded
-			if has_calibration:
-				# Save uM concentrations
-				filename_uM = self._view.homeDir + 'peaks_uM_' + self.fdir.split('/')[-1].split(',')[0]
-				if os.path.exists(filename_uM):
-					with open(filename_uM, 'a', newline='') as csvfile:
-						fwriter = csv.DictWriter(csvfile, fieldnames=elementConcs.keys())
-						fwriter.writerow(elementConcs)
-				else:
-					csv_cols = ['start_time', 'stop_time', 'correction'] + elementList
-					with open(filename_uM, 'w', newline='') as csvfile:
-						fwriter = csv.writer(csvfile, delimiter=',', quotechar='|')
-						if self._view.normAvIndium > 0:
-							fwriter.writerow(['115In correction applied: %.3f' % corr_factor, ''])
-						fwriter.writerow(['concentrations in uM', ''])
-						fwriter.writerow(['time in minutes', ''])
-						fwriter.writerow(csv_cols)
-					with open(filename_uM, 'a', newline='') as csvfile:
-						fwriter = csv.DictWriter(csvfile, fieldnames=elementConcs.keys())
-						fwriter.writerow(elementConcs)
-
-				# Save ppb concentrations
-				filename_ppb = self._view.homeDir + 'peaks_ppb_' + self.fdir.split('/')[-1].split(',')[0]
-				if os.path.exists(filename_ppb):
-					with open(filename_ppb, 'a', newline='') as csvfile:
-						fwriter = csv.DictWriter(csvfile, fieldnames=elementConcs_ppb.keys())
-						fwriter.writerow(elementConcs_ppb)
-				else:
-					csv_cols = ['start_time', 'stop_time', 'correction'] + elementList
-					with open(filename_ppb, 'w', newline='') as csvfile:
-						fwriter = csv.writer(csvfile, delimiter=',', quotechar='|')
-						if self._view.normAvIndium > 0:
-							fwriter.writerow(['115In correction applied: %.3f' % corr_factor, ''])
-						fwriter.writerow(['concentrations in ppb', ''])
-						fwriter.writerow(['time in minutes', ''])
-						fwriter.writerow(csv_cols)
-					with open(filename_ppb, 'a', newline='') as csvfile:
-						fwriter = csv.DictWriter(csvfile, fieldnames=elementConcs_ppb.keys())
-						fwriter.writerow(elementConcs_ppb)
+		# Resolve the filename we integrated: prefer explicit arg (comparison
+		# mode), otherwise use the currently-loaded file's basename.
+		if filename:
+			base_name = os.path.basename(filename).split(',')[0]
+		elif hasattr(self, 'fdir') and self.fdir:
+			base_name = os.path.basename(self.fdir).split(',')[0]
 		else:
-			# Always save peak areas (single file mode)
-			filename_areas = self._view.homeDir + 'peakareas_counts_all.csv'
-			peakAreas_with_file = {**{'filename': self.fdir.split('/')[-1].split(',')[0]}, **peakAreas}
-			if os.path.exists(filename_areas):
-				with open(filename_areas, 'a', newline='') as csvfile:
-					fwriter = csv.DictWriter(csvfile, fieldnames=peakAreas_with_file.keys())
-					fwriter.writerow(peakAreas_with_file)
-			else:
-				csv_cols = ['filename', 'tstamp', 'start_time', 'stop_time', 'correction'] + elementList
-				with open(filename_areas, 'w', newline='') as csvfile:
-					fwriter = csv.writer(csvfile, delimiter=',', quotechar='|')
-					if self._view.normAvIndium > 0:
-						fwriter.writerow(['115In correction applied: %.3f' % corr_factor, ''])
-					fwriter.writerow(['peak areas (counts)', ''])
-					fwriter.writerow(['time in minutes', ''])
-					fwriter.writerow(csv_cols)
-				with open(filename_areas, 'a', newline='') as csvfile:
-					fwriter = csv.DictWriter(csvfile, fieldnames=peakAreas_with_file.keys())
-					fwriter.writerow(peakAreas_with_file)
+			base_name = 'unknown.csv'
 
-			# Only save concentration files if calibration is loaded
-			if has_calibration:
-				# Save uM concentrations (single file mode)
-				filename_uM = self._view.homeDir + 'concentrations_uM_all.csv'
-				elementConcs_with_file = {**{'filename': self.fdir.split('/')[-1].split(',')[0]}, **elementConcs}
-				if os.path.exists(filename_uM):
-					with open(filename_uM, 'a', newline='') as csvfile:
-						fwriter = csv.DictWriter(csvfile, fieldnames=elementConcs_with_file.keys())
-						fwriter.writerow(elementConcs_with_file)
-				else:
-					csv_cols = ['filename', 'tstamp', 'start_time', 'stop_time', 'correction'] + elementList
-					with open(filename_uM, 'w', newline='') as csvfile:
-						fwriter = csv.writer(csvfile, delimiter=',', quotechar='|')
-						fwriter.writerow(['concentrations in uM', ''])
-						fwriter.writerow(['time in minutes', ''])
-						fwriter.writerow(csv_cols)
-					with open(filename_uM, 'a', newline='') as csvfile:
-						fwriter = csv.DictWriter(csvfile, fieldnames=elementConcs_with_file.keys())
-						fwriter.writerow(elementConcs_with_file)
+		return {
+			'results': results,
+			'peakAreas': peakAreas,
+			'elementConcs': elementConcs,
+			'elementConcs_ppb': elementConcs_ppb,
+			'baselineAreas': baselineAreas,
+			'baseline_applied': bool(self._view.baseSubtract),
+			'corr_factor': corr_factor,
+			'filename': base_name,
+			'timestamp': datetime.now().strftime("%d-%b-%Y (%H:%M:%S)"),
+			'has_calibration': has_calibration,
+			'range': (self.intRange[0], self.intRange[1]),
+		}
 
-				# Save ppb concentrations (single file mode)
-				filename_ppb = self._view.homeDir + 'concentrations_ppb_all.csv'
-				elementConcs_ppb_with_file = {**{'filename': self.fdir.split('/')[-1].split(',')[0]}, **elementConcs_ppb}
-				if os.path.exists(filename_ppb):
-					with open(filename_ppb, 'a', newline='') as csvfile:
-						fwriter = csv.DictWriter(csvfile, fieldnames=elementConcs_ppb_with_file.keys())
-						fwriter.writerow(elementConcs_ppb_with_file)
-				else:
-					csv_cols = ['filename', 'tstamp', 'start_time', 'stop_time', 'correction'] + elementList
-					with open(filename_ppb, 'w', newline='') as csvfile:
-						fwriter = csv.writer(csvfile, delimiter=',', quotechar='|')
-						fwriter.writerow(['concentrations in ppb', ''])
-						fwriter.writerow(['time in minutes', ''])
-						fwriter.writerow(csv_cols)
-					with open(filename_ppb, 'a', newline='') as csvfile:
-						fwriter = csv.DictWriter(csvfile, fieldnames=elementConcs_ppb_with_file.keys())
-						fwriter.writerow(elementConcs_ppb_with_file)
-				with open(filename_areas, 'a', newline='') as csvfile:
-					fwriter = csv.DictWriter(csvfile, fieldnames=peakAreas_with_file.keys())
-					fwriter.writerow(peakAreas_with_file)
+	def saveIntegration(self, records, output_path):
+		'''Write accumulated integration records to a single wide CSV that
+		mirrors the multi-file results popup: one row per file, grouped
+		columns per element (Peak area / ppb / µM if calibrated). Metadata
+		columns (range, 115In correction) are also included.
 
-		return results
+		Args:
+			records:     list of dicts produced by integrate()
+			output_path: full path of the CSV to write
+
+		Returns:
+			list of paths written (single entry).
+		'''
+		if not records:
+			return []
+
+		out_dir = os.path.dirname(output_path)
+		if out_dir:
+			os.makedirs(out_dir, exist_ok=True)
+
+		# Union of integrated elements across records, preserving first-seen
+		# order. 115In is already excluded upstream.
+		META_COLS = {'start_time', 'stop_time', 'correction'}
+		element_order = []
+		for rec in records:
+			for k in rec['peakAreas']:
+				if k not in META_COLS and k not in element_order:
+					element_order.append(k)
+
+		has_any_cal = any(r.get('has_calibration') for r in records)
+		# Include a baseline column per element whenever any record used it,
+		# so the user can see what was subtracted.
+		has_any_baseline = any(r.get('baseline_applied') for r in records)
+
+		# Header row: 'File', metadata, then per-element groups.
+		sub_headers = ['peak_area']
+		if has_any_baseline:
+			sub_headers.append('baseline')
+		if has_any_cal:
+			sub_headers.extend(['ppb', 'uM'])
+
+		header = ['file', 'start_min', 'stop_min', '115In_correction']
+		if has_any_baseline:
+			header.append('baseline_subtracted')
+		for el in element_order:
+			for sub in sub_headers:
+				header.append(f'{el}_{sub}')
+
+		with open(output_path, 'w', newline='') as csvfile:
+			fwriter = csv.writer(csvfile)
+			fwriter.writerow(header)
+			for rec in records:
+				start = rec['peakAreas'].get('start_time', '')
+				stop = rec['peakAreas'].get('stop_time', '')
+				corr = rec.get('corr_factor', 1)
+				row = [rec['filename'], start, stop, f'{corr:.3f}']
+				if has_any_baseline:
+					row.append('yes' if rec.get('baseline_applied') else 'no')
+				pa = rec['peakAreas']
+				ec_uM = rec.get('elementConcs') or {}
+				ec_ppb = rec.get('elementConcs_ppb') or {}
+				baselines = rec.get('baselineAreas') or {}
+				has_cal = rec.get('has_calibration', False)
+				for el in element_order:
+					row.append(pa.get(el, ''))
+					if has_any_baseline:
+						row.append(baselines.get(el, ''))
+					if has_any_cal:
+						row.append(ec_ppb.get(el, '') if has_cal else '')
+						row.append(ec_uM.get(el, '') if has_cal else '')
+				fwriter.writerow(row)
+
+		return [output_path]
 
 	def plotLowRange(self, xmin, n):
 		'''plots integration range'''

@@ -43,9 +43,14 @@ class PyLCICPMSCtrl:
 		self.button_is_checked = False
 		self._update_thread = None  # Store update checker thread
 		self._calibrationPending = False  # Flag for calibration element selection
+		self._click_proxy = None  # SignalProxy for plot clicks (set up once)
 
 		# Connect signals and slots
 		self._connectSignals()
+
+		# Enable clicking on the plot to define an integration range — always,
+		# no checkbox needed. Bind to the stable plot scene at startup.
+		self._enablePlotClicks()
 
 		# Check for updates on startup (in background)
 		QTimer.singleShot(500, self._check_for_updates)
@@ -137,6 +142,11 @@ class PyLCICPMSCtrl:
 		if self._view.compareFilesBtn.isChecked():
 			self._view.compareFilesBtn.setChecked(False)
 
+		# Drop any accumulated integration results and disable Save button.
+		self._view.integrationResults = []
+		if 'Save Integration' in self._view.integrateButtons:
+			self._view.integrateButtons['Save Integration'].setEnabled(False)
+
 		# Deselect current file so clicking it again will reload
 		self._view.listwidget.setCurrentItem(None)
 
@@ -181,42 +191,59 @@ class PyLCICPMSCtrl:
 		self._intPointY = act_pos.y()
 
 	def _onClick(self, event):
-		''' selects range for integration'''
-		self._act_pos = self._view.chroma.mapFromScene(event[0].scenePos())
-		cc = len(self._intRange)
-		cc = cc + 1
-		
+		'''Select integration range from a plot click.
+
+		Uses plotSpace's ViewBox to map scene coords to data coords, so it
+		works even after plotActiveElements reassigns self._view.chroma.
+		'''
+		vb = self._view.plotSpace.getViewBox()
+		self._act_pos = vb.mapSceneToView(event[0].scenePos())
+		cc = len(self._intRange) + 1
+
 		if cc == 1:
-			self._intRange.append(self._act_pos.x()) #.x() / 60 # in minutes
-			self._view.statusBar.showMessage(f'Integration start: {self._act_pos.x():.2f} min', 3000)
-			self._model.plotLowRange(self._act_pos.x(),self._n)
+			self._intRange.append(self._act_pos.x())
+			self._view.statusBar.showMessage(
+				f'Integration start: {self._act_pos.x():.2f} min', 3000,
+			)
+			self._model.plotLowRange(self._act_pos.x(), self._n)
 			self._minAssigned = True
 
-		if (cc == 2) and self._minAssigned is True:
-			self._intRange.append(self._act_pos.x()) #.x() / 60 # in minutes
-			self._view.statusBar.showMessage(f'Integration end: {self._act_pos.x():.2f} min | Range: {self._intRange[-1] - self._intRange[-2]:.2f} min', 5000)
-			self._model.plotHighRange(self._act_pos.x(),self._n)
+		elif cc == 2 and self._minAssigned:
+			self._intRange.append(self._act_pos.x())
+			self._view.statusBar.showMessage(
+				f'Integration end: {self._act_pos.x():.2f} min | '
+				f'Range: {self._intRange[-1] - self._intRange[-2]:.2f} min',
+				5000,
+			)
+			self._model.plotHighRange(self._act_pos.x(), self._n)
 			self._view.integrateButtons['Integrate'].setEnabled(True)
-			self._view.integrateButtons['Integrate'].setStyleSheet("background-color: red")
-			self._n = self._n + 1
+			self._view.integrateButtons['Integrate'].setStyleSheet(
+				'background-color: red'
+			)
+			self._n += 1
 
 		self.n_clicks = 1
 
-	def _selectIntRange(self,checked):
-		'''select integration range'''
-		if self._view.intbox.isChecked() == True:
-			self._view.proxy = pg.SignalProxy(self._view.chroma.scene().sigMouseClicked, rateLimit=60, slot=self._onClick)
-			self._view.statusBar.showMessage('Click plot to select integration range', 3000)
-		else:
-			self._view.proxy = None
-			self._view.statusBar.showMessage('Integration range selection disabled', 2000)
+	def _enablePlotClicks(self):
+		'''Bind mouse clicks on the plot to _onClick, once.
 
-	def _selectOneFile(self,checked):
-		'''select integration range'''
-		if self._view.oneFileBox.isChecked() == True:
-			self._view.singleOutputFile = True
-		else:
-			self._view.singleOutputFile = False
+		The plot's scene is stable across replots (plotSpace.clear() doesn't
+		destroy it), so a single SignalProxy set up on plotSpace.scene() works
+		for the app's lifetime — no need for the old intbox gate.
+		'''
+		if getattr(self, '_click_proxy', None) is not None:
+			return
+		self._click_proxy = pg.SignalProxy(
+			self._view.plotSpace.scene().sigMouseClicked,
+			rateLimit=60,
+			slot=self._onClick,
+		)
+		# Keep the old attribute name too, in case anything else reads it.
+		self._view.proxy = self._click_proxy
+
+	def _selectIntRange(self, checked):
+		'''Legacy no-op — clicks on the plot are always active now.'''
+		return
 
 	def _toggleCompareMode(self, checked):
 		'''Toggle file comparison mode - uses comparison list'''
@@ -482,52 +509,432 @@ class PyLCICPMSCtrl:
 			self._view.baseSubtract = False
 			
 	def _Integrate(self):
-		''' call integration function'''
+		''' Integrate over the current range in every selected file.
+
+		Selection rules:
+		  * If the file list has ≥2 rows selected, integrate each of them.
+		  * If compareMode is on and comparisonData is populated, integrate
+		    those instead (preserves existing comparison-mode behavior).
+		  * Otherwise integrate the currently-loaded file (single-select).
+
+		Before running, the user is shown a modal options popup where they
+		can toggle baseline subtraction and 115In normalization. Nothing is
+		written to disk — records go into self._view.integrationResults and
+		the user later hits "Save Integration" to persist them.
+		'''
+		# Ask the user about baseline subtraction / 115In correction first.
+		# Returns False if the user cancels.
+		if not self._promptIntegrationOptions():
+			return
 		has_calibration = len(self._view.calCurves) > 0
 
 		if not has_calibration:
-			# Warn user that only peak areas (counts) will be calculated
-			self._view.statusBar.showMessage('No calibration loaded - calculating peak areas (counts) only', 5000)
+			self._view.statusBar.showMessage(
+				'No calibration loaded - calculating peak areas (counts) only', 5000
+			)
 			print('No calibration loaded - only peak areas will be calculated')
 		else:
-			# Check which active elements have calibration curves
 			cal_elements = set(self._view.calCurves.keys())
-			active_elements = set(self._view.activeElements)
+			# 115In is never integrated and never needs a cal curve, so it
+			# shouldn't count against "unmatched" here even if the user
+			# selected it for plotting.
+			active_elements = {
+				el for el in self._view.activeElements
+				if not el.startswith('115In')
+			}
 			matched = cal_elements & active_elements
 			unmatched = active_elements - cal_elements
-
 			if matched:
 				print(f'Calibration available for: {list(matched)}')
 			if unmatched:
 				print(f'No calibration for: {list(unmatched)} (will show counts only)')
-				self._view.statusBar.showMessage(f'Partial calibration - {len(unmatched)} element(s) will show counts only', 5000)
+				self._view.statusBar.showMessage(
+					f'Partial calibration - {len(unmatched)} element(s) will show counts only',
+					5000,
+				)
 
-		# Handle comparison mode: integrate all compared files
+		new_records = []
+		display_results = {}  # short_name -> results dict (for display)
+
+		# --- Comparison mode --------------------------------------------
 		if self._view.compareMode and self._view.comparisonData:
-			all_results = {}
-			for i, (compare_data, filename) in enumerate(zip(self._view.comparisonData, self._view.comparisonFiles)):
-				# Get short name for display
+			for compare_data, filename in zip(
+				self._view.comparisonData, self._view.comparisonFiles,
+			):
 				if filename in self._view.comparisonLabels:
 					short_name = self._view.comparisonLabels[filename]
-				elif "LCICPMS_" in filename and ".csv" in filename:
-					start = filename.index("LCICPMS_") + len("LCICPMS_")
-					end = filename.index(".csv")
+				elif 'LCICPMS_' in filename and '.csv' in filename:
+					start = filename.index('LCICPMS_') + len('LCICPMS_')
+					end = filename.index('.csv')
 					short_name = filename[start:end]
 				else:
 					short_name = filename.replace('.csv', '')
 
-				results = self._model.integrate(self._intRange, has_calibration=has_calibration,
-				                                 data=compare_data, filename=filename)
-				all_results[short_name] = results
+				record = self._model.integrate(
+					self._intRange,
+					has_calibration=has_calibration,
+					data=compare_data,
+					filename=filename,
+				)
+				new_records.append(record)
+				display_results[short_name] = record['results']
 
-			# Display results for all files
-			self._displayComparisonResults(all_results, has_calibration)
+			source_label = 'comparison mode'
+
+		# --- Multi-select in the file list ------------------------------
 		else:
-			# Single file mode
-			results = self._model.integrate(self._intRange, has_calibration=has_calibration)
-			self._displayIntegrationResults(results, has_calibration)
+			selected_items = self._view.listwidget.selectedItems()
+			multi = len(selected_items) > 1
 
-		self._view.integrateButtons['Integrate'].setStyleSheet("background-color: light gray")
+			if multi:
+				for item in selected_items:
+					filename = item.text()
+					path = os.path.join(self._view.homeDir, filename)
+					try:
+						df = self._model.importData_generic(fdir=path)
+					except Exception as e:
+						print(f'  Skipping {filename}: {e}')
+						continue
+					record = self._model.integrate(
+						self._intRange,
+						has_calibration=has_calibration,
+						data=df,
+						filename=filename,
+					)
+					new_records.append(record)
+					display_results[filename] = record['results']
+
+				source_label = f'{len(display_results)} selected file(s)'
+			else:
+				# Single-file: uses the currently-loaded dataset.
+				record = self._model.integrate(
+					self._intRange, has_calibration=has_calibration,
+				)
+				new_records.append(record)
+				display_results[record['filename']] = record['results']
+				# Inline panel gets the quick-glance version as well.
+				self._displayIntegrationResults(record['results'], has_calibration)
+				source_label = 'single file'
+
+		# Stash records in memory *before* the popup opens so its Save button
+		# has data to write, then show the summary.
+		self._view.integrationResults.extend(new_records)
+		if new_records:
+			self._showMultiFileResultsDialog(
+				display_results, has_calibration, source=source_label,
+			)
+			self._view.integrateButtons['Save Integration'].setEnabled(True)
+			self._view.statusBar.showMessage(
+				f'Integrated {len(new_records)} file(s). '
+				f'{len(self._view.integrationResults)} record(s) in memory.',
+				6000,
+			)
+
+		self._view.integrateButtons['Integrate'].setStyleSheet(
+			'background-color: light gray'
+		)
+
+	def _promptIntegrationOptions(self):
+		'''Modal popup shown at the start of every Integrate action.
+
+		Lets the user toggle:
+		  * Baseline subtraction  (sets self._view.baseSubtract)
+		  * 115In normalization   (sets self._view.normAvIndium via file pick)
+
+		Returns True if integration should proceed, False if the user
+		cancelled.
+		'''
+		from PyQt6.QtWidgets import (
+			QDialog, QVBoxLayout, QHBoxLayout, QCheckBox, QLabel, QPushButton,
+			QDialogButtonBox,
+		)
+
+		dlg = QDialog(self._view)
+		dlg.setWindowTitle('Integration Options')
+		dlg.setMinimumWidth(420)
+		layout = QVBoxLayout(dlg)
+
+		# --- Baseline subtraction ---
+		base_box = QCheckBox('Subtract baseline')
+		base_box.setChecked(bool(self._view.baseSubtract))
+		base_box.setToolTip(
+			'Subtract a trapezoidal baseline (drawn between the intensities '
+			'at the start and end of the integration range) from every '
+			'element\'s peak area.'
+		)
+		layout.addWidget(base_box)
+
+		# --- 115In correction ---
+		in_row = QHBoxLayout()
+		in_box = QCheckBox('Apply 115In normalization')
+		in_row.addWidget(in_box)
+		layout.addLayout(in_row)
+
+		in_status = QLabel()
+		in_status.setStyleSheet('color: #555; margin-left: 20px;')
+		layout.addWidget(in_status)
+
+		pick_btn = QPushButton('Choose reference file…')
+		pick_btn.setToolTip(
+			'Pick a CSV whose average 115In signal will be used as the '
+			'normalization reference.'
+		)
+		layout.addWidget(pick_btn)
+
+		# Local state so cancel doesn't mutate view.normAvIndium.
+		state = {'norm_avg': self._view.normAvIndium if self._view.normAvIndium > 0 else None}
+
+		def _refresh_in_ui():
+			has_ref = state['norm_avg'] is not None
+			if has_ref:
+				in_status.setText(
+					f'Reference loaded: avg 115In = {state["norm_avg"]:.1f} counts'
+				)
+			else:
+				in_status.setText('<i>No reference file loaded.</i>')
+				in_status.setTextFormat(Qt.TextFormat.RichText)
+			pick_btn.setEnabled(in_box.isChecked())
+			in_status.setVisible(True)
+
+		# Pre-check the box if a reference is already loaded from a prior run.
+		in_box.setChecked(state['norm_avg'] is not None)
+		_refresh_in_ui()
+		in_box.stateChanged.connect(lambda _s: _refresh_in_ui())
+
+		def _pick_reference():
+			from PyQt6.QtWidgets import QFileDialog
+			path, _ = QFileDialog.getOpenFileName(
+				dlg, 'Select 115In Normalization File',
+				self._view.homeDir, 'CSV Files (*.csv);;All Files (*)',
+			)
+			if not path:
+				return
+			try:
+				df = self._model.importData_generic(fdir=path)
+			except Exception as e:
+				in_status.setText(f'<span style="color:#a04040">Error: {e}</span>')
+				return
+			indium_col = next(
+				(c for c in df.columns
+				 if c.startswith('115In') and 'Time' not in c),
+				None,
+			)
+			if indium_col is None:
+				in_status.setText(
+					'<span style="color:#a04040">115In column not found in that file.</span>'
+				)
+				return
+			state['norm_avg'] = float(np.average(df[indium_col].dropna()))
+			_refresh_in_ui()
+
+		pick_btn.clicked.connect(_pick_reference)
+
+		buttons = QDialogButtonBox(
+			QDialogButtonBox.StandardButton.Ok
+			| QDialogButtonBox.StandardButton.Cancel,
+		)
+		buttons.accepted.connect(dlg.accept)
+		buttons.rejected.connect(dlg.reject)
+		layout.addWidget(buttons)
+
+		if dlg.exec() != QDialog.DialogCode.Accepted:
+			return False
+
+		# Apply choices to the view.
+		self._view.baseSubtract = base_box.isChecked()
+		if in_box.isChecked() and state['norm_avg'] is not None:
+			self._view.normAvIndium = state['norm_avg']
+		else:
+			# Not requested (or requested but no file selected) — turn off.
+			self._view.normAvIndium = -999.99
+		return True
+
+	def _showMultiFileResultsDialog(self, all_results, has_calibration, source=''):
+		'''Show a scrollable popup table with per-file, per-element results.
+
+		all_results: dict of {file_or_label: {element: {peak_area, conc_ppb, conc_uM}}}
+		'''
+		from PyQt6.QtWidgets import (
+			QDialog, QVBoxLayout, QLabel, QTableWidget, QTableWidgetItem,
+			QDialogButtonBox, QHeaderView,
+		)
+
+		if not all_results:
+			return
+
+		# Ordered, de-duplicated list of elements across all files.
+		element_order = []
+		for res in all_results.values():
+			for el in res:
+				if el not in element_order:
+					element_order.append(el)
+
+		# Show a Baseline column when any element in any file had a
+		# baseline subtracted (i.e. the user checked "Subtract baseline").
+		show_baseline = any(
+			(data or {}).get('baseline_area') is not None
+			for res in all_results.values() for data in res.values()
+		)
+
+		sub_headers = ['Peak area']
+		if show_baseline:
+			sub_headers.append('Baseline')
+		if has_calibration:
+			sub_headers.extend(['ppb', 'µM'])
+
+		dlg = QDialog(self._view)
+		dlg.setWindowTitle('Integration Results')
+		dlg.resize(1000, 520)
+		layout = QVBoxLayout(dlg)
+
+		range_min, range_max = self._intRange[0], self._intRange[1]
+		summary = QLabel(
+			f'<b>{len(all_results)} file(s)</b> integrated over '
+			f'{range_min:.2f} – {range_max:.2f} min'
+			+ (f'  ·  source: {source}' if source else '')
+			+ ('' if has_calibration else '  ·  <i>no calibration</i>')
+		)
+		summary.setTextFormat(Qt.TextFormat.RichText)
+		layout.addWidget(summary)
+
+		table = QTableWidget()
+		table.setAlternatingRowColors(True)
+		table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+		total_cols = 1 + len(element_order) * len(sub_headers)
+		table.setColumnCount(total_cols)
+		table.setRowCount(len(all_results))
+
+		# Two-row header via horizontalHeader by concatenating labels.
+		headers = ['File']
+		for el in element_order:
+			for sub in sub_headers:
+				headers.append(f'{el}\n{sub}')
+		table.setHorizontalHeaderLabels(headers)
+		table.horizontalHeader().setSectionResizeMode(
+			QHeaderView.ResizeMode.ResizeToContents,
+		)
+		table.horizontalHeader().setDefaultAlignment(
+			Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+		)
+
+		def _fmt_area(v):
+			if v is None:
+				return '—'
+			return f'{v:.2e}' if abs(v) >= 1e5 else f'{v:.0f}'
+
+		def _fmt(v, digits):
+			return '—' if v is None else f'{v:.{digits}f}'
+
+		for r_idx, (fname, res) in enumerate(all_results.items()):
+			table.setItem(r_idx, 0, QTableWidgetItem(fname))
+			col = 1
+			for el in element_order:
+				data = res.get(el)
+				if data is None:
+					for _ in sub_headers:
+						table.setItem(r_idx, col, QTableWidgetItem('—'))
+						col += 1
+					continue
+				table.setItem(r_idx, col, QTableWidgetItem(_fmt_area(data['peak_area'])))
+				col += 1
+				if show_baseline:
+					table.setItem(r_idx, col, QTableWidgetItem(_fmt_area(data.get('baseline_area'))))
+					col += 1
+				if has_calibration:
+					table.setItem(r_idx, col, QTableWidgetItem(_fmt(data['conc_ppb'], 3)))
+					col += 1
+					table.setItem(r_idx, col, QTableWidgetItem(_fmt(data['conc_uM'], 3)))
+					col += 1
+
+		layout.addWidget(table)
+
+		hint = QLabel(
+			f'<i>{len(self._view.integrationResults)} record(s) in memory. '
+			'Click <b>Save to CSV…</b> to write them.</i>'
+		)
+		hint.setTextFormat(Qt.TextFormat.RichText)
+		hint.setStyleSheet('color: #555;')
+		layout.addWidget(hint)
+
+		buttons = QDialogButtonBox(
+			QDialogButtonBox.StandardButton.Close
+		)
+		save_btn = buttons.addButton(
+			'Save to CSV…', QDialogButtonBox.ButtonRole.AcceptRole,
+		)
+		save_btn.setDefault(True)
+
+		def _on_save():
+			# Delegate to the existing save routine. On success it clears the
+			# in-memory records; close this dialog either way.
+			self._saveIntegration()
+			dlg.accept()
+
+		save_btn.clicked.connect(_on_save)
+		buttons.rejected.connect(dlg.reject)
+		layout.addWidget(buttons)
+		dlg.exec()
+
+	def _saveIntegration(self):
+		'''Save all in-memory integration records to a single CSV whose columns
+		match the multi-file results popup: one row per file, grouped columns
+		per element (Peak area, ppb, µM if calibrated).'''
+		from PyQt6.QtWidgets import QMessageBox, QFileDialog
+
+		if not self._view.integrationResults:
+			QMessageBox.information(
+				self._view,
+				'Nothing to Save',
+				'No integration results in memory yet. Run Integrate first.',
+				QMessageBox.StandardButton.Ok,
+			)
+			return
+
+		start_dir = self._view.homeDir.rstrip('/\\') if self._view.homeDir else ''
+		from datetime import datetime as _dt
+		default_name = f'integration_{_dt.now().strftime("%Y%m%d_%H%M%S")}.csv'
+		default_path = os.path.join(start_dir, default_name) if start_dir else default_name
+
+		file_path, _ = QFileDialog.getSaveFileName(
+			self._view, 'Save Integration', default_path, 'CSV Files (*.csv)',
+		)
+		if not file_path:
+			return
+		if not file_path.lower().endswith('.csv'):
+			file_path += '.csv'
+
+		try:
+			self._model.saveIntegration(
+				self._view.integrationResults, file_path,
+			)
+			written = [file_path]
+		except Exception as e:
+			QMessageBox.critical(
+				self._view,
+				'Save Failed',
+				f'Could not write integration file:\n\n{e}',
+				QMessageBox.StandardButton.Ok,
+			)
+			return
+
+		saved_count = len(self._view.integrationResults)
+
+		# Clear in-memory records now that they've been persisted, and
+		# disable Save Integration until the user integrates something new.
+		self._view.integrationResults = []
+		self._view.integrateButtons['Save Integration'].setEnabled(False)
+
+		msg = QMessageBox(self._view)
+		msg.setIcon(QMessageBox.Icon.Information)
+		msg.setWindowTitle('Integration Saved')
+		msg.setText(f'Saved {saved_count} record(s). In-memory results cleared.')
+		msg.setInformativeText(
+			'<b>File written:</b><br>' + '<br>'.join(
+				os.path.basename(p) for p in written
+			)
+		)
+		msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+		msg.exec()
 
 	def _displayIntegrationResults(self, results, has_calibration):
 		"""Display integration results in the results panel."""
@@ -600,18 +1007,17 @@ class PyLCICPMSCtrl:
 		self._model.plotActiveElements()
 	
 	def _showCalWindow(self):
-		''' opens calibration window after element selection '''
-		# Set flag to indicate we're selecting elements for calibration
-		self._calibrationPending = True
-		self._view.statusBar.showMessage('Select elements to calibrate from the periodic table', 3000)
-		# Open periodic table for element selection
-		self._showPeriodicTable()
+		''' opens the calibration window directly; elements can be selected from within '''
+		self._calibrationPending = False
+		self._openCalibrationWindow()
 
 	def _openCalibrationWindow(self):
-		'''Actually opens the calibration window after elements are selected'''
-		self.calWindow = Calibration(view = self._view)
-		calmodel = CalibrateFunctions(calview= self.calWindow, mainview = self._view)
-		CalCtrlFunctions(model=calmodel, mainview = self._view,view= self.calWindow)
+		'''Opens the calibration window. Element selection happens inside the window.'''
+		self.calWindow = Calibration(view=self._view)
+		calmodel = CalibrateFunctions(calview=self.calWindow, mainview=self._view)
+		CalCtrlFunctions(
+			model=calmodel, mainview=self._view, view=self.calWindow, mainctrl=self,
+		)
 		self.calWindow.show()
 
 	def _showPeriodicTable(self):
@@ -620,6 +1026,42 @@ class PyLCICPMSCtrl:
 		ptmodel = PTModel(ptview=self._ptview, mainview=self._view, maincontrol=self)
 		PTCtrl(model=ptmodel, mainview=self._view, ptview=self._ptview, mainctrl=self)
 		self._ptview.show()
+
+	def _reorderListWidget(self, key):
+		'''Re-sort the file listwidget in place using the provided key fn.'''
+		lw = self._view.listwidget
+		names = [lw.item(i).text() for i in range(lw.count())]
+		names.sort(key=key)
+		lw.clear()
+		for name in names:
+			lw.insertItem(lw.count(), name)
+
+	def _sortListByName(self):
+		'''Alphabetical (case-insensitive) sort.'''
+		self._reorderListWidget(lambda fn: fn.lower())
+
+	def _sortListByNumber(self):
+		'''Sort by the trailing "_XX" number so 1, 2, ..., 10 come out
+		numerically. Items without that suffix sort alphabetically after
+		all numbered ones.'''
+		import re as _re
+		num_re = _re.compile(r'_(\d+)\.csv$', _re.IGNORECASE)
+
+		def key(fn):
+			m = num_re.search(fn)
+			if m:
+				return (0, int(m.group(1)), fn.lower())
+			return (1, 0, fn.lower())
+
+		self._reorderListWidget(key)
+
+	def _updateCalibrateButtonStyle(self):
+		'''Blue when no calibration is loaded, neutral once one is.'''
+		btn = self._view.integrateButtons['Calibrate']
+		if getattr(self._view, 'calCurves', None):
+			btn.setStyleSheet(self._view._buttonStyle)
+		else:
+			btn.setStyleSheet(self._view._calibrateHighlightStyle)
 
 	def _loadCalFile(self):
 		''' loads cal file and saves to self._view.calCurves '''
@@ -653,6 +1095,7 @@ class PyLCICPMSCtrl:
 			num_elements = len(self._view.calCurves)
 			self._view.statusBar.showMessage(f'Loaded calibration file: {os.path.basename(calfile)} ({num_elements} elements)', 5000)
 			self._view.calib_label.setText(f'Calibration loaded ({num_elements} elements)')
+			self._updateCalibrateButtonStyle()
 		except Exception as e:
 			self._view.statusBar.showMessage(f'Error loading calibration: {str(e)}', 5000)
 			self._view.calib_label.setText('Calibration error')
@@ -759,7 +1202,7 @@ class PyLCICPMSCtrl:
 
 		file_path, selected_filter = QFileDialog.getSaveFileName(
 			self._view,
-			"Export Plot",
+			"Save Plot",
 			default_name,
 			file_filter
 		)
@@ -958,8 +1401,15 @@ class PyLCICPMSCtrl:
 		lines = []
 		labels = []
 		for m in self._view.activeElements:
-			icpms_time = self._model._data['Time ' + m] / 60
-			icpms_signal = self._model._data[m]
+			icpms_time = np.asarray(self._model._data['Time ' + m], dtype=float) / 60
+			icpms_signal = np.asarray(self._model._data[m], dtype=float)
+			# Drop points where time == 0 so exported plots don't get phantom
+			# line segments diving back to the origin.
+			mask = np.isfinite(icpms_time) & (icpms_time > 0)
+			icpms_time = icpms_time[mask]
+			icpms_signal = icpms_signal[mask]
+			if len(icpms_time) == 0:
+				continue
 			formatted_label = format_analyte_latex(m)
 			p, = ax.plot(icpms_time, icpms_signal, color=color_dict[m], linewidth=2.5, label=formatted_label)
 			lines.append(p)
@@ -1232,7 +1682,9 @@ plt.show()
 		self._view.buttons['Reset'].setEnabled(False)
 		self._view.buttons['Export Plot'].setEnabled(False)
 		# Select Elements button is always enabled - periodic table can be opened anytime
-		self._view.integrateButtons['Calibrate'].setEnabled(False)
+		# Calibrate is always enabled: users can open the calibration window
+		# without first choosing a directory and pick elements from within.
+		self._view.integrateButtons['Calibrate'].setEnabled(True)
 		self._view.integrateButtons['Load Cal.'].setEnabled(False)
 		self._view.integrateButtons['Integrate'].setEnabled(False)
 		self._view.integrateButtons['115In Correction'].setEnabled(False)
@@ -1246,16 +1698,16 @@ plt.show()
 
 		self._view.intbox.stateChanged.connect(self._selectIntRange)
 		self._view.compareFilesBtn.clicked.connect(self._toggleCompareMode)
-		self._view.oneFileBox.stateChanged.connect(self._selectOneFile)
-		self._view.baseSubtractBox.stateChanged.connect(self._baselineSubtraction)
 
 		self._view.buttons['Reset'].clicked.connect(self._confirmReset)
 		self._view.buttons['Export Plot'].clicked.connect(self._exportPlot)
+		self._view.buttons['Sort By Name'].clicked.connect(self._sortListByName)
+		self._view.buttons['Sort By Number'].clicked.connect(self._sortListByNumber)
 
 		self._view.integrateButtons['Calibrate'].clicked.connect(self._showCalWindow)
 		self._view.integrateButtons['Load Cal.'].clicked.connect(self._loadCalFile)
 		self._view.integrateButtons['Integrate'].clicked.connect(self._Integrate)
-		self._view.integrateButtons['115In Correction'].clicked.connect(self._selectInNormFile)
+		self._view.integrateButtons['Save Integration'].clicked.connect(self._saveIntegration)
 		self._view.integrateButtons['Reset Integration'].clicked.connect(self._resetIntegrate)
 
 		# Comparison list buttons and interactions

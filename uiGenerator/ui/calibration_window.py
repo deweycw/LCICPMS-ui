@@ -363,6 +363,9 @@ class Calibration(QWidget):
 
 		# Apply style to Directory button (already created)
 		self.buttons['Directory'].setStyleSheet(buttonStyle)
+		self.buttons['Select Elements'].setStyleSheet(buttonStyle)
+		self.buttons['Sort By Name'].setStyleSheet(buttonStyle)
+		self.buttons['Sort By Number'].setStyleSheet(buttonStyle)
 		self.buttons['Reset'].setStyleSheet(buttonStyle)
 		self.buttons['Clear Plot'].setStyleSheet(buttonStyle)
 
@@ -390,6 +393,14 @@ class Calibration(QWidget):
 		separator = QLabel("|")
 		separator.setStyleSheet("color: #ccc; margin: 0 4px;")
 		buttonsLayout.addWidget(separator)
+
+		# 115In normalization button
+		self.integrateButtons['Normalize In'] = QPushButton("Normalize to 115In")
+		self.integrateButtons['Normalize In'].setToolTip(
+			"Normalize each standard's peak areas by its 115In peak area"
+		)
+		self.integrateButtons['Normalize In'].setStyleSheet(buttonStyle)
+		buttonsLayout.addWidget(self.integrateButtons['Normalize In'])
 
 		# Calculate button (highlighted)
 		self.integrateButtons['Calculate Curve'] = QPushButton("Calculate Curve")
@@ -429,6 +440,9 @@ class Calibration(QWidget):
 		fileListLabel.setStyleSheet("font-weight: bold;")
 		headerLayout.addWidget(fileListLabel)
 		headerLayout.addStretch()
+		headerLayout.addWidget(self.buttons['Sort By Name'])
+		headerLayout.addWidget(self.buttons['Sort By Number'])
+		headerLayout.addWidget(self.buttons['Select Elements'])
 		headerLayout.addWidget(self.buttons['Directory'])
 		listBoxLayout.addLayout(headerLayout)
 
@@ -445,6 +459,20 @@ class Calibration(QWidget):
 
 		self.buttons['Directory'] = QPushButton("📁 Directory")
 		self.buttons['Directory'].setToolTip("Select directory containing calibration standard files")
+
+		self.buttons['Select Elements'] = QPushButton("Select Elements")
+		self.buttons['Select Elements'].setToolTip(
+			"Open the periodic table to choose which elements to calibrate"
+		)
+
+		self.buttons['Sort By Name'] = QPushButton("Sort A–Z")
+		self.buttons['Sort By Name'].setToolTip('Sort the file list alphabetically.')
+
+		self.buttons['Sort By Number'] = QPushButton("Sort by #")
+		self.buttons['Sort By Number'].setToolTip(
+			'Sort the file list by the trailing "_XX" number so 1, 2, ..., 10 '
+			'come out in numeric order.'
+		)
 
 		self.buttons['Reset'] = QPushButton("Reset All")
 		self.buttons['Reset'].setToolTip("Reset calibration data and clear selections")

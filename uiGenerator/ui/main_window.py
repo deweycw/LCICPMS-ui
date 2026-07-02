@@ -44,8 +44,12 @@ class PyLCICPMSUi(QMainWindow):
 		self.elementOptions = ['55Mn','56Fe','59Co','60Ni','63Cu','66Zn','111Cd','115In', '208Pb']
 		self._elements_in_file = []
 		self._analytes_by_element = {}  # Maps element symbol to list of available analytes
-		self.singleOutputFile = False
 		self.baseSubtract = False
+
+		# In-memory integration results. Each entry is a dict returned by
+		# LICPMSfunctions.integrate() (peakAreas / elementConcs / etc.). The
+		# user explicitly saves these via the "Save Integration" button.
+		self.integrationResults = []
 
 		# File comparison mode (supports up to 12 files)
 		self.compareMode = False
@@ -381,17 +385,15 @@ class PyLCICPMSUi(QMainWindow):
 		self.integrateLayout = QHBoxLayout()
 		self.integrateLayout.setSpacing(15)
 
-		# Checkboxes in horizontal row
+		# Kept as hidden attributes for backward compat. Range selection is
+		# always active on the plot, and baseline subtraction is now chosen
+		# in the popup that appears when the user clicks Integrate.
 		self.intbox = QCheckBox('Integration')
-		self.intbox.setToolTip('Click plot to set integration start and end points')
-		self.oneFileBox = QCheckBox('Single file')
-		self.oneFileBox.setToolTip('Save all integrations to a single output file')
+		self.intbox.setChecked(True)
+		self.intbox.setVisible(False)
 		self.baseSubtractBox = QCheckBox('Baseline sub.')
-		self.baseSubtractBox.setToolTip('Subtract baseline from peak area calculations')
+		self.baseSubtractBox.setVisible(False)
 
-		self.integrateLayout.addWidget(self.intbox)
-		self.integrateLayout.addWidget(self.oneFileBox)
-		self.integrateLayout.addWidget(self.baseSubtractBox)
 		self.integrateLayout.addStretch()
 
 	def _createIntegrateLayout(self):
@@ -411,6 +413,13 @@ class PyLCICPMSUi(QMainWindow):
 		self.integrateButtons['Reset Integration'].setStyleSheet(self._buttonStyle)
 		self.intButtonLayout.addWidget(self.integrateButtons['Reset Integration'])
 
+		# Save is now offered inside the integration summary popup, so the
+		# standalone toolbar button is no longer shown. Kept as a hidden
+		# attribute so existing enable/disable code doesn't need to change.
+		self.integrateButtons['Save Integration'] = QPushButton("Save Integration")
+		self.integrateButtons['Save Integration'].setVisible(False)
+		self.integrateButtons['Save Integration'].setEnabled(False)
+
 		# Separator
 		sep1 = QLabel("|")
 		sep1.setStyleSheet("color: #ccc; margin: 0 4px;")
@@ -424,7 +433,10 @@ class PyLCICPMSUi(QMainWindow):
 
 		self.integrateButtons['Calibrate'] = QPushButton("Calibrate")
 		self.integrateButtons['Calibrate'].setToolTip("Open calibration window")
-		self.integrateButtons['Calibrate'].setStyleSheet("""
+		# Highlighted (blue) style used when no calibration is loaded yet.
+		# Once a cal curve is loaded, the controller swaps this for the
+		# neutral _buttonStyle so the button no longer draws attention.
+		self._calibrateHighlightStyle = """
 			QPushButton {
 				padding: 6px 12px;
 				border: 1px solid #4682b4;
@@ -443,7 +455,8 @@ class PyLCICPMSUi(QMainWindow):
 				background-color: #a0a0a0;
 				border-color: #a0a0a0;
 			}
-		""")
+		"""
+		self.integrateButtons['Calibrate'].setStyleSheet(self._calibrateHighlightStyle)
 		self.intButtonLayout.addWidget(self.integrateButtons['Calibrate'])
 
 		# Separator
@@ -451,10 +464,11 @@ class PyLCICPMSUi(QMainWindow):
 		sep2.setStyleSheet("color: #ccc; margin: 0 4px;")
 		self.intButtonLayout.addWidget(sep2)
 
+		# 115In correction is now offered as a checkbox in the Integrate
+		# popup, so the standalone button is no longer shown. Kept as a
+		# hidden attribute in case existing code still references it.
 		self.integrateButtons['115In Correction'] = QPushButton("¹¹⁵In Corr.")
-		self.integrateButtons['115In Correction'].setToolTip("Apply indium normalization correction")
-		self.integrateButtons['115In Correction'].setStyleSheet(self._buttonStyle)
-		self.intButtonLayout.addWidget(self.integrateButtons['115In Correction'])
+		self.integrateButtons['115In Correction'].setVisible(False)
 
 		self.intButtonLayout.addStretch()
 
@@ -543,11 +557,30 @@ class PyLCICPMSUi(QMainWindow):
 		fileListLabel.setStyleSheet("font-weight: bold;")
 		headerLayout.addWidget(fileListLabel)
 		headerLayout.addStretch()
+
+		self.buttons['Sort By Name'] = QPushButton('Sort A–Z')
+		self.buttons['Sort By Name'].setToolTip('Sort the file list alphabetically.')
+		self.buttons['Sort By Name'].setStyleSheet(self._buttonStyle)
+		headerLayout.addWidget(self.buttons['Sort By Name'])
+
+		self.buttons['Sort By Number'] = QPushButton('Sort by #')
+		self.buttons['Sort By Number'].setToolTip(
+			'Sort the file list by the trailing "_XX" number so 1, 2, ..., 10 '
+			'come out in numeric order.'
+		)
+		self.buttons['Sort By Number'].setStyleSheet(self._buttonStyle)
+		headerLayout.addWidget(self.buttons['Sort By Number'])
+
 		headerLayout.addWidget(self.buttons['Directory'])
 		leftLayout.addLayout(headerLayout)
 
 		self.listwidget = QListWidget()
 		self.listwidget.setMinimumHeight(100)  # Ensure minimum visibility
+		# Multi-select so the user can Ctrl/Shift-click multiple files and
+		# integrate them all in one pass over the current time range.
+		self.listwidget.setSelectionMode(
+			QAbstractItemView.SelectionMode.ExtendedSelection
+		)
 		leftLayout.addWidget(self.listwidget)
 
 		listBoxLayout.addLayout(leftLayout, stretch=2)
@@ -656,8 +689,8 @@ class PyLCICPMSUi(QMainWindow):
 		self.buttons['Reset'].setToolTip("Reset plot view")
 		self.buttons['Reset'].setStyleSheet(self._buttonStyle)
 
-		self.buttons['Export Plot'] = QPushButton("Export")
-		self.buttons['Export Plot'].setToolTip("Export plot as PNG, SVG, or PDF")
+		self.buttons['Export Plot'] = QPushButton("Save Plot")
+		self.buttons['Export Plot'].setToolTip("Save plot as PNG, SVG, or PDF")
 		self.buttons['Export Plot'].setStyleSheet(self._buttonStyle)
 
 		# Compare button with toggle style
@@ -1163,7 +1196,6 @@ class PyLCICPMSUi(QMainWindow):
 				'homeDir': self.homeDir,
 				'activeElements': self.activeElements,
 				'calCurves': self.calCurves,
-				'singleOutputFile': self.singleOutputFile,
 				'baseSubtract': self.baseSubtract,
 			}
 
@@ -1228,15 +1260,13 @@ class PyLCICPMSUi(QMainWindow):
 				self.calCurves = workspace['calCurves']
 				if self.calCurves:
 					self.calib_label.setText('Calibration loaded')
+				# Refresh the Calibrate button style to match the loaded state.
+				if hasattr(self, '_controller'):
+					self._controller._updateCalibrateButtonStyle()
 
 			# Restore settings
-			if 'singleOutputFile' in workspace:
-				self.singleOutputFile = workspace['singleOutputFile']
-				self.oneFileBox.setChecked(workspace['singleOutputFile'])
-
 			if 'baseSubtract' in workspace:
 				self.baseSubtract = workspace['baseSubtract']
-				self.baseSubtractBox.setChecked(workspace['baseSubtract'])
 
 			# Restore current file and plot
 			if 'currentFile' in workspace and workspace['currentFile']:

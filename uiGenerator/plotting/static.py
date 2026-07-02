@@ -28,8 +28,14 @@ class ICPMS_Data_Class:
 		labels = []
 		lines = []
 		for m in self.elements:
-			icpms_time = self.icpms_data['Time ' + m] / 60
-			icpms_signal = self.icpms_data[m]  # Keep in cps, don't divide by 1000
+			icpms_time = np.asarray(self.icpms_data['Time ' + m], dtype=float) / 60
+			icpms_signal = np.asarray(self.icpms_data[m], dtype=float)  # Keep in cps
+			# Drop points with time == 0 so lines don't dive back to the origin.
+			mask = np.isfinite(icpms_time) & (icpms_time > 0)
+			icpms_time = icpms_time[mask]
+			icpms_signal = icpms_signal[mask]
+			if len(icpms_time) == 0:
+				continue
 			formatted_label = format_analyte_latex(m)
 			p, = host.plot(icpms_time, icpms_signal, color = color_dict[m], linewidth=2.5, label=formatted_label)
 			if icpms_max < max(icpms_signal):

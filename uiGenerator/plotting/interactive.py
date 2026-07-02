@@ -5,6 +5,18 @@ from matplotlib.ticker import (MultipleLocator, MaxNLocator,PercentFormatter)
 import pyqtgraph as pg
 from uiGenerator.utils.analyte_formatter import format_analyte_html
 
+
+def _drop_zero_time(icpms_time, icpms_signal):
+	"""Drop rows where time == 0 (or NaN); these anchor phantom line segments
+	back to the origin in the chromatogram plot.
+
+	Accepts pandas Series or numpy arrays; returns numpy arrays.
+	"""
+	t = np.asarray(icpms_time, dtype=float)
+	s = np.asarray(icpms_signal, dtype=float)
+	mask = np.isfinite(t) & (t > 0)
+	return t[mask], s[mask]
+
 class plotChroma:
 	def __init__(self,view = None,elementList=None,icpms_data=None,activeElements=None,plt_title = None, compare_data=None, compare_files=None, compare_labels=None):
 		self._view = view
@@ -89,6 +101,9 @@ class plotChroma:
 						# Get data for this file and element
 						icpms_time = compare_data['Time ' + element] / 60
 						icpms_signal = compare_data[element]  # Keep in cps, don't divide by 1000
+						icpms_time, icpms_signal = _drop_zero_time(icpms_time, icpms_signal)
+						if len(icpms_time) == 0:
+							continue
 						self.max_icp = max(icpms_signal) if self.max_icp is None else max(self.max_icp, max(icpms_signal))
 
 						# Get color for this file
@@ -139,6 +154,9 @@ class plotChroma:
 				# Get data
 				icpms_time = self.icpms_data['Time ' + m] / 60
 				icpms_signal = self.icpms_data[m]  # Keep in cps, don't divide by 1000
+				icpms_time, icpms_signal = _drop_zero_time(icpms_time, icpms_signal)
+				if len(icpms_time) == 0:
+					continue
 				self.max_icp = max(icpms_signal) if self.max_icp is None else max(self.max_icp, max(icpms_signal))
 
 				# Convert color
